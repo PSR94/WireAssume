@@ -18,9 +18,11 @@ jobs:
           toolchain: 1.82.0
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Format
-        run: cargo fmt --all -- --check
+      - name: Format runner workspace
+        run: cargo fmt --all
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+      - name: Enforce committed formatting
+        run: git diff --exit-code -- '*.rs'
