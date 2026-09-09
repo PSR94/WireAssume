@@ -84,7 +84,7 @@ fn redact_uri(names: &BTreeSet<String>, uri: &mut String) {
         .collect();
     if !pairs.is_empty() {
         parsed.query_pairs_mut().clear().extend_pairs(pairs);
-        *uri = parsed.into();
+        *uri = parsed.to_string();
     }
 }
 
@@ -101,7 +101,7 @@ fn redact_body(paths: &BTreeSet<String>, body: &mut Body) {
 
 fn simple_jsonpath(path: &str) -> Option<Vec<&str>> {
     let remainder = path.strip_prefix("$.")?;
-    if remainder.is_empty() || remainder.contains(['[', ']', '*']) {
+    if remainder.is_empty() || remainder.chars().any(|ch| matches!(ch, '[' | ']' | '*')) {
         return None;
     }
     Some(remainder.split('.').collect())
