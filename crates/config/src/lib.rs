@@ -1,7 +1,12 @@
 //! `.wireassume.yml` parsing and validation.
 
 use serde::{Deserialize, Serialize};
-use std::{collections::{BTreeMap, BTreeSet}, fs, net::{IpAddr, SocketAddr}, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    net::{IpAddr, SocketAddr},
+    path::Path,
+};
 use thiserror::Error;
 use url::Url;
 use wireassume_model::RedactionPolicy;
@@ -201,13 +206,22 @@ impl WireAssumeConfig {
                 errors.push(format!("scenario name {:?} is duplicated", scenario.name));
             }
             if scenario.mutation.budget == 0 {
-                errors.push(format!("scenario {:?} mutation.budget must be greater than zero", scenario.name));
+                errors.push(format!(
+                    "scenario {:?} mutation.budget must be greater than zero",
+                    scenario.name
+                ));
             }
             if scenario.mutation.concurrency == 0 {
-                errors.push(format!("scenario {:?} mutation.concurrency must be greater than zero", scenario.name));
+                errors.push(format!(
+                    "scenario {:?} mutation.concurrency must be greater than zero",
+                    scenario.name
+                ));
             }
             if scenario.traffic.endpoint.path.trim().is_empty() {
-                errors.push(format!("scenario {:?} traffic.endpoint.path must not be empty", scenario.name));
+                errors.push(format!(
+                    "scenario {:?} traffic.endpoint.path must not be empty",
+                    scenario.name
+                ));
             }
             validate_oracle(&scenario.name, &scenario.oracle, &mut errors);
         }
@@ -224,26 +238,38 @@ fn validate_oracle(name: &str, oracle: &OracleConfig, errors: &mut Vec<String>) 
     match oracle {
         OracleConfig::Command(config) | OracleConfig::Custom(config) => {
             if config.argv.is_empty() {
-                errors.push(format!("scenario {name:?} command/custom oracle argv must not be empty"));
+                errors.push(format!(
+                    "scenario {name:?} command/custom oracle argv must not be empty"
+                ));
             }
             if config.timeout_ms == 0 {
-                errors.push(format!("scenario {name:?} oracle timeout_ms must be greater than zero"));
+                errors.push(format!(
+                    "scenario {name:?} oracle timeout_ms must be greater than zero"
+                ));
             }
         }
         OracleConfig::Playwright(config) => {
             if config.argv.is_empty() {
-                errors.push(format!("scenario {name:?} playwright oracle argv must not be empty"));
+                errors.push(format!(
+                    "scenario {name:?} playwright oracle argv must not be empty"
+                ));
             }
             if config.timeout_ms == 0 {
-                errors.push(format!("scenario {name:?} oracle timeout_ms must be greater than zero"));
+                errors.push(format!(
+                    "scenario {name:?} oracle timeout_ms must be greater than zero"
+                ));
             }
         }
         OracleConfig::Http(config) => {
             if config.timeout_ms == 0 {
-                errors.push(format!("scenario {name:?} oracle timeout_ms must be greater than zero"));
+                errors.push(format!(
+                    "scenario {name:?} oracle timeout_ms must be greater than zero"
+                ));
             }
             if config.success_statuses.is_empty() {
-                errors.push(format!("scenario {name:?} HTTP oracle success_statuses must not be empty"));
+                errors.push(format!(
+                    "scenario {name:?} HTTP oracle success_statuses must not be empty"
+                ));
             }
         }
     }
@@ -253,15 +279,33 @@ fn is_loopback(ip: IpAddr) -> bool {
     ip.is_loopback()
 }
 
-fn default_listen() -> SocketAddr { "127.0.0.1:9090".parse().unwrap() }
-fn default_max_payload() -> usize { 2 * 1024 * 1024 }
-fn default_timeout() -> u64 { 30_000 }
-fn default_budget() -> usize { 500 }
-fn default_concurrency() -> usize { 4 }
-fn default_seed() -> u64 { 42 }
-fn default_get() -> String { "GET".into() }
-fn default_exit_codes() -> BTreeSet<i32> { [0].into_iter().collect() }
-fn default_http_statuses() -> BTreeSet<u16> { (200..300).collect() }
+fn default_listen() -> SocketAddr {
+    "127.0.0.1:9090".parse().unwrap()
+}
+fn default_max_payload() -> usize {
+    2 * 1024 * 1024
+}
+fn default_timeout() -> u64 {
+    30_000
+}
+fn default_budget() -> usize {
+    500
+}
+fn default_concurrency() -> usize {
+    4
+}
+fn default_seed() -> u64 {
+    42
+}
+fn default_get() -> String {
+    "GET".into()
+}
+fn default_exit_codes() -> BTreeSet<i32> {
+    [0].into_iter().collect()
+}
+fn default_http_statuses() -> BTreeSet<u16> {
+    (200..300).collect()
+}
 
 #[cfg(test)]
 mod tests {

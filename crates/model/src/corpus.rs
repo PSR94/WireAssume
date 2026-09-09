@@ -1,7 +1,10 @@
 use crate::{canonical_json, stable_hash, stable_id, RedactionPolicy};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{fs, io, path::{Path, PathBuf}};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,9 +113,18 @@ impl CorpusStore {
         let directory = self.root.join("corpus").join(&id);
         fs::create_dir_all(&directory)?;
 
-        write_atomic(&directory.join("request.json"), &canonical_json(&interaction.request)?)?;
-        write_atomic(&directory.join("response.json"), &canonical_json(&interaction.response)?)?;
-        write_atomic(&directory.join("metadata.json"), &canonical_json(&interaction.metadata)?)?;
+        write_atomic(
+            &directory.join("request.json"),
+            &canonical_json(&interaction.request)?,
+        )?;
+        write_atomic(
+            &directory.join("response.json"),
+            &canonical_json(&interaction.response)?,
+        )?;
+        write_atomic(
+            &directory.join("metadata.json"),
+            &canonical_json(&interaction.metadata)?,
+        )?;
 
         Ok(PersistedInteraction {
             id,
@@ -127,7 +139,11 @@ impl CorpusStore {
         let request = serde_json::from_slice(&fs::read(directory.join("request.json"))?)?;
         let response = serde_json::from_slice(&fs::read(directory.join("response.json"))?)?;
         let metadata = serde_json::from_slice(&fs::read(directory.join("metadata.json"))?)?;
-        Ok(Interaction { request, response, metadata })
+        Ok(Interaction {
+            request,
+            response,
+            metadata,
+        })
     }
 
     pub fn ids(&self) -> Result<Vec<String>, CorpusError> {
@@ -154,7 +170,9 @@ impl CorpusStore {
 fn validate_id(id: &str) -> Result<(), CorpusError> {
     if id.starts_with("int_")
         && id.len() <= 128
-        && id.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
+        && id
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
     {
         Ok(())
     } else {

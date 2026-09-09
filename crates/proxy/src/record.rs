@@ -9,12 +9,7 @@ use axum::{
 };
 use chrono::{SecondsFormat, Utc};
 use reqwest::{redirect::Policy, Client};
-use std::{
-    net::SocketAddr,
-    path::PathBuf,
-    sync::Arc,
-    time::Instant,
-};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Instant};
 use url::Url;
 use wireassume_model::{
     CorpusStore, Interaction, InteractionMetadata, RedactionPolicy, RequestRecord, ResponseRecord,
@@ -82,9 +77,7 @@ async fn forward_and_record(
         .map_err(|error| {
             ProxyFailure::new(
                 StatusCode::PAYLOAD_TOO_LARGE,
-                format!(
-                    "request body exceeded configured limit or could not be read: {error}"
-                ),
+                format!("request body exceeded configured limit or could not be read: {error}"),
             )
         })?;
 
@@ -181,12 +174,14 @@ async fn forward_and_record(
             builder = builder.header(name, value);
         }
     }
-    builder.body(AxumBody::from(response_bytes)).map_err(|error| {
-        ProxyFailure::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("failed to construct proxy response: {error}"),
-        )
-    })
+    builder
+        .body(AxumBody::from(response_bytes))
+        .map_err(|error| {
+            ProxyFailure::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to construct proxy response: {error}"),
+            )
+        })
 }
 
 struct ProxyFailure {

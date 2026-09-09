@@ -137,7 +137,10 @@ mod tests {
             request: RequestRecord {
                 method: "GET".into(),
                 uri: "https://api.example.test/users?token=secret&page=1".into(),
-                headers: vec![Header { name: "Authorization".into(), value: "Bearer secret".into() }],
+                headers: vec![Header {
+                    name: "Authorization".into(),
+                    value: "Bearer secret".into(),
+                }],
                 body: Body::Empty,
             },
             response: ResponseRecord {
@@ -150,6 +153,9 @@ mod tests {
         policy.apply(&mut interaction);
         assert_eq!(interaction.request.headers[0].value, REDACTED);
         assert!(interaction.request.uri.contains("token=%5BREDACTED%5D"));
-        assert_eq!(interaction.response.body, Body::Json(json!({"user": {"token": REDACTED, "name": "Alice"}})));
+        assert_eq!(
+            interaction.response.body,
+            Body::Json(json!({"user": {"token": REDACTED, "name": "Alice"}}))
+        );
     }
 }

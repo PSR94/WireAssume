@@ -154,10 +154,7 @@ impl ExperimentRunner {
                     .request
                     .method
                     .eq_ignore_ascii_case(&config.method)
-                && path_matches(
-                    &config.path_pattern,
-                    request_path(&interaction.request.uri),
-                )
+                && path_matches(&config.path_pattern, request_path(&interaction.request.uri))
             {
                 interactions.push((id, interaction));
             }
@@ -250,16 +247,16 @@ impl ExperimentRunner {
         Ok(cases)
     }
 
-    pub async fn run(&self, config: &ExperimentConfig) -> Result<ExperimentReport, ExperimentError> {
+    pub async fn run(
+        &self,
+        config: &ExperimentConfig,
+    ) -> Result<ExperimentReport, ExperimentError> {
         let cases = self.plan(config)?;
         let run_fingerprint = RunFingerprint {
             scenario_id: &config.scenario_id,
             source_revision: config.source_revision.as_deref(),
             seed: config.seed,
-            mutation_ids: cases
-                .iter()
-                .map(|case| case.mutation.id.as_str())
-                .collect(),
+            mutation_ids: cases.iter().map(|case| case.mutation.id.as_str()).collect(),
         };
         let run_id = stable_id("run", &run_fingerprint)?;
 
@@ -302,12 +299,8 @@ impl ExperimentRunner {
                 outcome: artifact.outcome,
             };
             let evidence_id = stable_id("ev", &evidence_fingerprint)?;
-            let artifact_ref = persist_evidence_artifact(
-                &self.workspace,
-                &evidence_id,
-                "oracle.json",
-                &artifact,
-            )?;
+            let artifact_ref =
+                persist_evidence_artifact(&self.workspace, &evidence_id, "oracle.json", &artifact)?;
             results.push(TrialResult {
                 evidence_id,
                 interaction_id: case.interaction_id.clone(),
@@ -517,9 +510,6 @@ mod tests {
         assert!(path_matches("/customers/*", "/customers/123"));
         assert!(path_matches("/v1/*/items/*", "/v1/acme/items/42"));
         assert!(!path_matches("/customers/*", "/orders/123"));
-        assert!(!path_matches(
-            "/customers/*/detail",
-            "/customers/1/other"
-        ));
+        assert!(!path_matches("/customers/*/detail", "/customers/1/other"));
     }
 }

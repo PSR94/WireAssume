@@ -42,7 +42,12 @@ impl MutationPlanner {
         Self { mutators }
     }
 
-    pub fn plan(&self, baseline: &Value, config: &PlannerConfig, already_tested: &HashSet<String>) -> MutationPlan {
+    pub fn plan(
+        &self,
+        baseline: &Value,
+        config: &PlannerConfig,
+        already_tested: &HashSet<String>,
+    ) -> MutationPlan {
         let mut all: Vec<Mutation> = self
             .mutators
             .iter()

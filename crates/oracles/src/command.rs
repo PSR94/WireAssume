@@ -1,7 +1,11 @@
 use crate::{Oracle, OracleError, OracleResult, OracleStatus};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::{collections::{BTreeMap, BTreeSet}, path::PathBuf, time::{Duration, Instant}};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 use tokio::{process::Command, time::timeout};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,10 +32,14 @@ pub struct CommandOracle {
 impl CommandOracle {
     pub fn new(spec: CommandOracleSpec) -> Result<Self, OracleError> {
         if spec.argv.is_empty() {
-            return Err(OracleError::Invalid("argv must contain an executable".into()));
+            return Err(OracleError::Invalid(
+                "argv must contain an executable".into(),
+            ));
         }
         if spec.timeout_ms == 0 {
-            return Err(OracleError::Invalid("timeout_ms must be greater than zero".into()));
+            return Err(OracleError::Invalid(
+                "timeout_ms must be greater than zero".into(),
+            ));
         }
         Ok(Self { spec })
     }
@@ -39,7 +47,9 @@ impl CommandOracle {
 
 #[async_trait]
 impl Oracle for CommandOracle {
-    fn kind(&self) -> &'static str { "command" }
+    fn kind(&self) -> &'static str {
+        "command"
+    }
 
     async fn evaluate(&self) -> Result<OracleResult, OracleError> {
         let start = Instant::now();
@@ -54,10 +64,18 @@ impl Oracle for CommandOracle {
         }
         command.envs(&self.spec.env);
 
-        let output = timeout(Duration::from_millis(self.spec.timeout_ms), command.output())
-            .await
-            .map_err(|_| OracleError::Execution(format!("command exceeded {} ms timeout", self.spec.timeout_ms)))?
-            .map_err(|error| OracleError::Execution(format!("failed to spawn command: {error}")))?;
+        let output = timeout(
+            Duration::from_millis(self.spec.timeout_ms),
+            command.output(),
+        )
+        .await
+        .map_err(|_| {
+            OracleError::Execution(format!(
+                "command exceeded {} ms timeout",
+                self.spec.timeout_ms
+            ))
+        })?
+        .map_err(|error| OracleError::Execution(format!("failed to spawn command: {error}")))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -80,9 +98,16 @@ impl Oracle for CommandOracle {
             }
         }
 
-        let status = if failures.is_empty() { OracleStatus::Pass } else { OracleStatus::Fail };
+        let status = if failures.is_empty() {
+            OracleStatus::Pass
+        } else {
+            OracleStatus::Fail
+        };
         let summary = if failures.is_empty() {
-            format!("command oracle passed with exit code {}", exit_code.unwrap_or_default())
+            format!(
+                "command oracle passed with exit code {}",
+                exit_code.unwrap_or_default()
+            )
         } else {
             failures.join("; ")
         };
@@ -96,7 +121,9 @@ impl Oracle for CommandOracle {
     }
 }
 
-fn default_exit_codes() -> BTreeSet<i32> { [0].into_iter().collect() }
+fn default_exit_codes() -> BTreeSet<i32> {
+    [0].into_iter().collect()
+}
 
 #[cfg(test)]
 mod tests {
@@ -113,7 +140,8 @@ mod tests {
             stdout_contains: vec!["healthy".into()],
             stderr_not_contains: vec![],
             success_exit_codes: [0].into_iter().collect(),
-        }).unwrap();
+        })
+        .unwrap();
         let result = oracle.evaluate().await.unwrap();
         assert_eq!(result.status, OracleStatus::Pass);
     }

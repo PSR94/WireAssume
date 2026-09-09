@@ -49,12 +49,7 @@ struct ScalarMutationSpec<'a> {
 }
 
 impl<'a> ScalarMutationSpec<'a> {
-    fn new(
-        kind: MutationKind,
-        replacement: Value,
-        description: &'a str,
-        variant: &'a str,
-    ) -> Self {
+    fn new(kind: MutationKind, replacement: Value, description: &'a str, variant: &'a str) -> Self {
         Self {
             kind,
             replacement,

@@ -176,10 +176,7 @@ where
 }
 
 /// Convenience wrapper for minimizing a provider-response field set while consumer success remains true.
-pub fn minimize_success<T, F>(
-    items: Vec<T>,
-    test: F,
-) -> Result<MinimizeResult<T>, MinimizeError>
+pub fn minimize_success<T, F>(items: Vec<T>, test: F) -> Result<MinimizeResult<T>, MinimizeError>
 where
     T: Clone,
     F: FnMut(&[T]) -> TestOutcome,
@@ -241,16 +238,13 @@ mod tests {
 
     #[test]
     fn minimizes_success_to_fields_the_consumer_needs() {
-        let result = minimize_success(
-            vec!["id", "name", "email", "avatar", "metadata"],
-            |items| {
-                if items.contains(&"id") && items.contains(&"email") {
-                    TestOutcome::Pass
-                } else {
-                    TestOutcome::Fail
-                }
-            },
-        )
+        let result = minimize_success(vec!["id", "name", "email", "avatar", "metadata"], |items| {
+            if items.contains(&"id") && items.contains(&"email") {
+                TestOutcome::Pass
+            } else {
+                TestOutcome::Fail
+            }
+        })
         .unwrap();
         assert_eq!(result.items.len(), 2);
         assert!(result.items.contains(&"id"));

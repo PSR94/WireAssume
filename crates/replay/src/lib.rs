@@ -36,16 +36,25 @@ impl ReplayIndex {
         Ok(Self { entries })
     }
 
-    pub fn len(&self) -> usize { self.entries.len() }
-    pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 
     /// v0.1 matching is intentionally deterministic and conservative: exact method plus path/query.
     /// Request bodies are not ignored by a claim of semantic matching; body-aware matchers are a later extension.
     pub fn find(&self, method: &str, uri: &str) -> Option<&ReplayEntry> {
         let target = request_target(uri)?;
         self.entries.iter().find(|entry| {
-            entry.interaction.request.method.eq_ignore_ascii_case(method)
-                && request_target(&entry.interaction.request.uri).as_deref() == Some(target.as_str())
+            entry
+                .interaction
+                .request
+                .method
+                .eq_ignore_ascii_case(method)
+                && request_target(&entry.interaction.request.uri).as_deref()
+                    == Some(target.as_str())
         })
     }
 }
@@ -71,7 +80,10 @@ mod tests {
 
     #[test]
     fn target_ignores_host_but_preserves_query() {
-        assert_eq!(request_target("https://api.example.test/a?b=1").as_deref(), Some("/a?b=1"));
+        assert_eq!(
+            request_target("https://api.example.test/a?b=1").as_deref(),
+            Some("/a?b=1")
+        );
         assert_eq!(request_target("/a?b=1").as_deref(), Some("/a?b=1"));
     }
 }

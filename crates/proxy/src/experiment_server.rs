@@ -8,7 +8,10 @@ use axum::{
     Router,
 };
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
-use tokio::{sync::{oneshot, RwLock}, task::JoinHandle};
+use tokio::{
+    sync::{oneshot, RwLock},
+    task::JoinHandle,
+};
 use wireassume_model::ResponseRecord;
 use wireassume_replay::ReplayIndex;
 
@@ -86,7 +89,12 @@ pub async fn start_experiment_replay(
     let app = Router::new().fallback(any(handler)).with_state(state);
     let listener = tokio::net::TcpListener::bind(config.listen)
         .await
-        .map_err(|error| format!("failed to bind experiment replay at {}: {error}", config.listen))?;
+        .map_err(|error| {
+            format!(
+                "failed to bind experiment replay at {}: {error}",
+                config.listen
+            )
+        })?;
     let listen = listener
         .local_addr()
         .map_err(|error| format!("failed to resolve experiment replay address: {error}"))?;

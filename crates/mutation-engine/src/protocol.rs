@@ -124,7 +124,11 @@ impl ProtocolMutator {
 
         let mut redirect = baseline.clone();
         redirect.status = 302;
-        set_header(&mut redirect.headers, "location", "/__wireassume_redirect__");
+        set_header(
+            &mut redirect.headers,
+            "location",
+            "/__wireassume_redirect__",
+        );
         out.push(ProtocolMutation::new(
             MutationKind::Redirect,
             "response.status",
@@ -390,12 +394,7 @@ struct ObjectChangeSpec<'a> {
 }
 
 impl<'a> ObjectChangeSpec<'a> {
-    fn new(
-        kind: MutationKind,
-        target: &'a str,
-        description: &'a str,
-        variant: &'a str,
-    ) -> Self {
+    fn new(kind: MutationKind, target: &'a str, description: &'a str, variant: &'a str) -> Self {
         Self {
             kind,
             target,
@@ -411,11 +410,7 @@ enum PaginationField {
     Metadata,
 }
 
-fn find_pagination_fields(
-    value: &Value,
-    pointer: &str,
-    out: &mut Vec<(String, PaginationField)>,
-) {
+fn find_pagination_fields(value: &Value, pointer: &str, out: &mut Vec<(String, PaginationField)>) {
     match value {
         Value::Object(map) => {
             let mut keys: Vec<_> = map.keys().collect();
@@ -556,8 +551,7 @@ mod tests {
         let baseline = response(200, json!({"items": [1, 2], "next_cursor": "abc"}));
         let mutations = ProtocolMutator::default().generate(&baseline, 42);
         assert!(mutations.iter().any(|mutation| {
-            mutation.kind == MutationKind::PaginationMissingCursor
-                && mutation.response != baseline
+            mutation.kind == MutationKind::PaginationMissingCursor && mutation.response != baseline
         }));
         assert!(mutations.iter().any(|mutation| {
             mutation.kind == MutationKind::StatusCode && mutation.response.status == 429

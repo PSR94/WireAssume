@@ -21,12 +21,10 @@ use wireassume_model::CorpusStore;
 use wireassume_mutation_engine::{
     ArrayMutator, JsonMutator, MutationPlanner, PlannerConfig, ProtocolMutatorConfig,
 };
-use wireassume_oracles::{
-    CommandOracle, CommandOracleSpec, HttpOracle, HttpOracleSpec, Oracle,
-};
+use wireassume_oracles::{CommandOracle, CommandOracleSpec, HttpOracle, HttpOracleSpec, Oracle};
 use wireassume_proxy::{
-    serve_record, serve_replay, start_experiment_replay, ExperimentReplayConfig,
-    RecordProxyConfig, ReplayServerConfig,
+    serve_record, serve_replay, start_experiment_replay, ExperimentReplayConfig, RecordProxyConfig,
+    ReplayServerConfig,
 };
 
 #[derive(Debug, Parser)]
@@ -145,8 +143,7 @@ fn init(config_path: &Path, force: bool) -> Result<()> {
     {
         fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     }
-    fs::write(config_path, TEMPLATE)
-        .with_context(|| format!("write {}", config_path.display()))?;
+    fs::write(config_path, TEMPLATE).with_context(|| format!("write {}", config_path.display()))?;
     for directory in ["corpus", "runs", "mutations", "evidence", "reports"] {
         fs::create_dir_all(Path::new(".wireassume").join(directory))
             .with_context(|| format!("create .wireassume/{directory}"))?;
@@ -298,10 +295,7 @@ async fn analyze(
     println!("Provider: {}", lock.provider.name);
     println!("Consumer: {}", lock.consumer.name);
     println!("Scenario: {}", lock.scenario.name);
-    println!(
-        "Endpoint: {} {}",
-        lock.endpoint.method, lock.endpoint.path
-    );
+    println!("Endpoint: {} {}", lock.endpoint.method, lock.endpoint.path);
     println!("Mutations executed: {}", report.executed_mutations);
     println!("Consumer failures: {}", report.failures);
     println!("Inconclusive trials: {}", report.inconclusive);
@@ -380,7 +374,10 @@ fn mutate(
     Ok(())
 }
 
-fn build_oracle(oracle: &OracleConfig, replay_listen: SocketAddr) -> Result<(Arc<dyn Oracle>, &'static str)> {
+fn build_oracle(
+    oracle: &OracleConfig,
+    replay_listen: SocketAddr,
+) -> Result<(Arc<dyn Oracle>, &'static str)> {
     match oracle {
         OracleConfig::Command(config) => Ok((
             Arc::new(CommandOracle::new(command_spec(config, replay_listen))?),
@@ -394,10 +391,7 @@ fn build_oracle(oracle: &OracleConfig, replay_listen: SocketAddr) -> Result<(Arc
             Arc::new(CommandOracle::new(playwright_spec(config, replay_listen))?),
             "playwright",
         )),
-        OracleConfig::Http(config) => Ok((
-            Arc::new(HttpOracle::new(http_spec(config))?),
-            "http",
-        )),
+        OracleConfig::Http(config) => Ok((Arc::new(HttpOracle::new(http_spec(config))?), "http")),
     }
 }
 
