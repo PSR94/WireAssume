@@ -1,0 +1,28 @@
+# OrbitDesk × PeopleCRM vertical slice
+
+This is WireAssume's first real end-to-end demo consumer.
+
+PeopleCRM's OpenAPI document declares `customer.email` optional and nullable. OrbitDesk nevertheless indexes `email` directly and rejects `null`, creating an intentional hidden consumer dependency. It deliberately tolerates an empty email string and unrelated response fields so WireAssume has both failing and passing counterfactual controls.
+
+The recorded corpus is checked in under `demo/.wireassume/corpus/` with stable fixture metadata. The findings are **not** checked in: `wireassume analyze` must execute OrbitDesk against controlled replay mutations and infer them from the real command-oracle outcomes.
+
+From the repository root:
+
+```bash
+cargo build --workspace --locked
+cd demo
+rm -rf .wireassume/runs .wireassume/evidence consumption.lock.yml
+../target/debug/wireassume --config wireassume.yml analyze --scenario customer-profile --source-revision demo-v1
+python3 verify_demo.py
+```
+
+Expected behavioral result (IDs/counts come from the implementation, not this README):
+
+- baseline: pass
+- `body.email` removed: fail
+- `body.email = null`: fail
+- `body.email = ""`: pass
+- harmless unrelated mutations: pass
+- inferred email requirement: present, non-null, empty accepted
+
+Provider-spec mismatch classification is the next integration step; `peoplecrm.openapi.yaml` is included now as the source fixture and must not be used to manufacture consumer assumptions.

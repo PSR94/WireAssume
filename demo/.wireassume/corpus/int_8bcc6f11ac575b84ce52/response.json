@@ -1,0 +1,1 @@
+{"status":200,"headers":[{"name":"content-type","value":"application/json"}],"body":{"kind":"json","value":{"id":"123","name":"Alice Example","email":"alice@example.com","avatar":null}}}

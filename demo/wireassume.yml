@@ -1,0 +1,33 @@
+project:
+  name: OrbitDesk
+
+provider:
+  name: PeopleCRM
+  openapi: peoplecrm.openapi.yaml
+
+proxy:
+  listen: 127.0.0.1:0
+  max_payload_bytes: 2097152
+
+scenarios:
+  - name: customer-profile
+    traffic:
+      endpoint:
+        method: GET
+        path: /customers/*
+    oracle:
+      type: command
+      argv: ["python3", "orbitdesk.py"]
+      cwd: "."
+      timeout_ms: 5000
+      inherit_env: true
+      stdout_contains: ["OrbitDesk customer profile OK"]
+    mutation:
+      budget: 50
+      concurrency: 1
+      seed: 42
+      include:
+        - remove-field
+        - null-field
+        - empty-string
+        - additional-unknown-property

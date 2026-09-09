@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: PeopleCRM Demo API
+  version: 1.0.0
+paths:
+  /customers/{customerId}:
+    get:
+      operationId: getCustomer
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - name
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    nullable: true
+                    description: Optional contact email. Clients must tolerate omission and null.
+                  avatar:
+                    type: string
+                    nullable: true
