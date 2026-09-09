@@ -29,6 +29,23 @@ pub enum MutationKind {
     RemoveLastArrayItem,
     OneArrayItem,
     RepeatedArrayItems,
+    StatusCode,
+    RemoveHeader,
+    ChangeContentType,
+    AdditionalHeader,
+    Redirect,
+    EmptyResponse,
+    MalformedBody,
+    DelayResponse,
+    ErrorCodeMissing,
+    ErrorMessageMissing,
+    EmptyErrorObject,
+    NonJsonErrorBody,
+    HtmlErrorPage,
+    UnknownErrorCode,
+    PaginationMissingCursor,
+    PaginationNullCursor,
+    PaginationMissingMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

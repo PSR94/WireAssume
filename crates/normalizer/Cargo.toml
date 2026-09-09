@@ -1,0 +1,12 @@
+[package]
+name = "wireassume-normalizer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+wireassume-model = { path = "../model" }
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
