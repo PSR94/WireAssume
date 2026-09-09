@@ -53,9 +53,25 @@ def main() -> int:
     if any(not assumption.get("evidence_refs") for assumption in email_assumptions):
         return fail("an email assumption has no evidence references")
 
+    comparisons = {
+        assumption["type"]: assumption.get("provider_comparison")
+        for assumption in email_assumptions
+    }
+    if comparisons.get("presence") != "undocumented":
+        return fail(
+            f"email presence provider comparison was {comparisons.get('presence')!r}, "
+            "expected 'undocumented'"
+        )
+    if comparisons.get("nullability") != "contradicted":
+        return fail(
+            f"email nullability provider comparison was {comparisons.get('nullability')!r}, "
+            "expected 'contradicted'"
+        )
+
     print(
         "demo verification OK: OrbitDesk experimentally requires PeopleCRM email "
-        "presence + non-nullability while tolerating empty strings"
+        "presence + non-nullability while tolerating empty strings; OpenAPI marks "
+        "the dependency optional + nullable"
     )
     return 0
 

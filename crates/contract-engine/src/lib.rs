@@ -8,6 +8,9 @@ use wireassume_experiment::{ExperimentReport, TrialOutcome, TrialResult};
 use wireassume_model::{stable_id, Body, ResponseRecord};
 use wireassume_mutation_engine::MutationKind;
 
+mod openapi;
+pub use openapi::{apply_openapi_comparison, OpenApiComparison, ProviderMismatch};
+
 pub const CONSUMPTION_SCHEMA_V1: &str = "wireassume.consumption/v1";
 
 #[derive(Debug, Clone)]
@@ -324,8 +327,8 @@ pub fn to_markdown(lock: &ConsumptionLock, analysis: &ContractAnalysis) -> Strin
             ));
             out.push_str(&format!("{}\n\n", assumption.behavior));
             out.push_str(&format!(
-                "Severity: **{}** · Confidence: **{}**\n\n",
-                assumption.severity, assumption.confidence
+                "Severity: **{}** · Confidence: **{}** · Provider comparison: **{}**\n\n",
+                assumption.severity, assumption.confidence, assumption.provider_comparison
             ));
         }
     }

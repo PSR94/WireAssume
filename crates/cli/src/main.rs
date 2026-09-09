@@ -14,7 +14,8 @@ use wireassume_config::{
     CommandOracleConfig, HttpOracleConfig, OracleConfig, PlaywrightOracleConfig, WireAssumeConfig,
 };
 use wireassume_contract_engine::{
-    analyze_contract, build_consumption_lock, to_json, to_markdown, to_yaml, ContractContext,
+    analyze_contract, apply_openapi_comparison, build_consumption_lock, to_json, to_markdown,
+    to_yaml, ContractContext,
 };
 use wireassume_experiment::{ExperimentConfig, ExperimentRunner};
 use wireassume_model::CorpusStore;
@@ -166,7 +167,7 @@ fn doctor(config_path: &Path) -> Result<()> {
     println!("✓ evidence-producing analyze pipeline available");
     println!("✓ consumption.lock JSON/YAML/Markdown generation available");
     println!(
-        "\nNot yet claimed by this command: integrated delta minimization, OpenAPI comparison, browser step DSL, backend API, or dashboard services."
+        "\nNot yet claimed by this command: integrated delta minimization, browser step DSL, backend API, or dashboard services."
     );
     Ok(())
 }
@@ -278,7 +279,27 @@ async fn analyze(
         source_revision_kind: revision_kind,
         source_revision: revision_value,
     };
-    let lock = build_consumption_lock(&report, &baselines, &context)?;
+    let mut lock = build_consumption_lock(&report, &baselines, &context)?;
+    let provider_comparison = if let Some(openapi) = &config.provider.openapi {
+        let configured = Path::new(openapi);
+        let spec_path = if configured.is_absolute() {
+            configured.to_path_buf()
+        } else {
+            config_path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."))
+                .join(configured)
+        };
+        let document = fs::read_to_string(&spec_path)
+            .with_context(|| format!("read provider OpenAPI {}", spec_path.display()))?;
+        Some(
+            apply_openapi_comparison(&mut lock, &document)
+                .with_context(|| format!("parse provider OpenAPI {}", spec_path.display()))?,
+        )
+    } else {
+        None
+    };
     let analysis = analyze_contract(&report);
 
     let run_directory = workspace.join("runs").join(&report.run_id);
@@ -304,6 +325,25 @@ async fn analyze(
         "Dependency Resilience Score: {} / 100",
         analysis.dependency_resilience_score
     );
+    if let Some(comparison) = &provider_comparison {
+        println!(
+            "Provider spec comparisons: {}",
+            comparison.compared_assumptions
+        );
+        println!(
+            "Provider guarantee mismatches: {}",
+            comparison.mismatches.len()
+        );
+        for mismatch in &comparison.mismatches {
+            println!(
+                "  ⚠ {} {}: provider={} classification={}",
+                mismatch.target,
+                mismatch.assumption_type,
+                mismatch.provider_guarantee,
+                mismatch.classification
+            );
+        }
+    }
     println!("\nRun: {}", report.run_id);
     println!("Evidence: {}/evidence/", workspace.display());
     println!("Contract: consumption.lock.yml");

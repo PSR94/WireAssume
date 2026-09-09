@@ -22,8 +22,8 @@ WireAssume is under active construction toward v0.1.0. This matrix distinguishes
 | Assumption inference | Implemented | Contract inference consumes real experiment outcomes; failing counterfactuals create assumptions and inconclusive trials do not create tolerance claims. |
 | Tolerance/resilience analysis | Implemented | Deterministic tolerance map and weighted resilience score are derived from decisive experiment outcomes. |
 | `wireassume analyze` | Partial integration | Runs evidence-backed controlled mutation experiments and emits contract/report outputs. Integrated ddmin and provider-spec comparison are still required for the target vertical slice. |
-| OpenAPI comparison | Roadmap | Configuration metadata exists, but actual provider-guarantee mismatch classification is not yet implemented. |
-| OrbitDesk + PeopleCRM demo | Roadmap | Next major milestone: a real consumer/provider vertical slice with no hard-coded discoveries. |
+| OpenAPI comparison | Implemented initial slice | `analyze` compares experimentally observed response-body assumptions with configured OpenAPI 3.x required/nullable/type guarantees; unsupported shapes are reported as unknown. |
+| OrbitDesk + PeopleCRM demo | Implemented vertical slice | CI executes the real OrbitDesk command consumer against controlled PeopleCRM replay mutations and verifies evidence-backed email presence/non-null assumptions plus provider-spec mismatch classification. |
 | Backend API | Roadmap | FastAPI/PostgreSQL deferred until the deterministic CLI vertical slice is proven. |
 | Dashboard | Roadmap | Next.js/TypeScript deferred until the deterministic CLI vertical slice is proven. |
 | GitHub Action product integration | Roadmap | Core CI exists; WireAssume PR contract-diff integration is planned after CLI/report semantics stabilize. |

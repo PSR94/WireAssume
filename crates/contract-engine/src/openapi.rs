@@ -35,11 +35,9 @@ pub fn apply_openapi_comparison(
     document: &str,
 ) -> Result<OpenApiComparison, serde_yaml::Error> {
     let root: Value = serde_yaml::from_str(document)?;
-    let Some((matched_path, response_schema)) = response_schema(
-        &root,
-        &lock.endpoint.method,
-        &lock.endpoint.path,
-    ) else {
+    let Some((matched_path, response_schema)) =
+        response_schema(&root, &lock.endpoint.method, &lock.endpoint.path)
+    else {
         for assumption in &mut lock.assumptions {
             assumption.provider_comparison = "unknown".into();
         }
@@ -95,7 +93,11 @@ pub fn apply_openapi_comparison(
     })
 }
 
-fn response_schema<'a>(root: &'a Value, method: &str, endpoint: &str) -> Option<(&'a str, &'a Value)> {
+fn response_schema<'a>(
+    root: &'a Value,
+    method: &str,
+    endpoint: &str,
+) -> Option<(&'a str, &'a Value)> {
     let paths = root.get("paths")?.as_object()?;
     let mut candidates: Vec<_> = paths.iter().collect();
     candidates.sort_by(|a, b| a.0.cmp(b.0));
@@ -114,7 +116,9 @@ fn response_schema<'a>(root: &'a Value, method: &str, endpoint: &str) -> Option<
     })?;
     let response = resolve_ref(root, response);
     let content = response.get("content")?.as_object()?;
-    let media = content.get("application/json").or_else(|| content.values().next())?;
+    let media = content
+        .get("application/json")
+        .or_else(|| content.values().next())?;
     let schema = resolve_ref(root, media.get("schema")?);
     Some((path.as_str(), schema))
 }
@@ -173,11 +177,11 @@ fn property_guarantee(root: &Value, response_schema: &Value, pointer: &str) -> P
     PropertyGuarantee::default()
 }
 
-fn classify<'a>(
+fn classify(
     assumption_type: &str,
     guarantee: &PropertyGuarantee,
     requirement: Option<&Requirement>,
-) -> (&'a str, &'a str) {
+) -> (&'static str, &'static str) {
     if !guarantee.documented {
         return ("undocumented", "undocumented");
     }
@@ -261,9 +265,7 @@ fn path_templates_match(consumer: &str, provider: &str) -> bool {
     let provider: Vec<_> = provider.trim_matches('/').split('/').collect();
     consumer.len() == provider.len()
         && consumer.iter().zip(provider).all(|(left, right)| {
-            *left == "*"
-                || (right.starts_with('{') && right.ends_with('}'))
-                || *left == right
+            *left == "*" || (right.starts_with('{') && right.ends_with('}')) || *left == right
         })
 }
 

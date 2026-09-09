@@ -25,4 +25,4 @@ Expected behavioral result (IDs/counts come from the implementation, not this RE
 - harmless unrelated mutations: pass
 - inferred email requirement: present, non-null, empty accepted
 
-Provider-spec mismatch classification is the next integration step; `peoplecrm.openapi.yaml` is included now as the source fixture and must not be used to manufacture consumer assumptions.
+`wireassume analyze` also compares those already-observed assumptions with `peoplecrm.openapi.yaml`: email presence is an undocumented consumer dependency because the provider marks it optional, and non-nullability is contradicted because the provider explicitly allows `null`. The OpenAPI document never creates consumer assumptions by itself.
