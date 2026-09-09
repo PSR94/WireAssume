@@ -9,13 +9,12 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use url::Url;
-use wireassume_model::{canonical_json, stable_id, Body, CorpusError, CorpusStore, Interaction};
+use wireassume_model::{canonical_json, stable_id, Body, CorpusError, CorpusStore};
 use wireassume_mutation_engine::{
     ArrayMutator, JsonMutator, MutationKind, MutationPlanner, PlannerConfig, ProtocolMutator,
     ProtocolMutatorConfig,
 };
-use wireassume_oracles::{Oracle, OracleResult, OracleStatus};
+use wireassume_oracles::{Oracle, OracleError, OracleResult, OracleStatus};
 use wireassume_proxy::{ExperimentReplayController, ResponseOverride};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +69,8 @@ pub struct TrialResult {
     pub outcome: TrialOutcome,
     pub duration_ms: u64,
     pub summary: String,
+    #[serde(default)]
+    pub artifact_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,6 +94,20 @@ pub struct ExperimentReport {
 pub struct BaselineResult {
     pub duration_ms: u64,
     pub summary: String,
+    #[serde(default)]
+    pub artifact_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OracleArtifact {
+    pub oracle_kind: String,
+    pub outcome: TrialOutcome,
+    pub duration_ms: u64,
+    pub summary: String,
+    #[serde(default)]
+    pub stdout: String,
+    #[serde(default)]
+    pub stderr: String,
 }
 
 #[derive(Debug, Error)]
@@ -135,8 +150,14 @@ impl ExperimentRunner {
         for id in store.ids()? {
             let interaction = store.load(&id)?;
             if interaction.metadata.scenario_id == config.scenario_id
-                && interaction.request.method.eq_ignore_ascii_case(&config.method)
-                && path_matches(&config.path_pattern, request_path(&interaction.request.uri))
+                && interaction
+                    .request
+                    .method
+                    .eq_ignore_ascii_case(&config.method)
+                && path_matches(
+                    &config.path_pattern,
+                    request_path(&interaction.request.uri),
+                )
             {
                 interactions.push((id, interaction));
             }
@@ -153,13 +174,15 @@ impl ExperimentRunner {
         let protocol = ProtocolMutator {
             config: config.protocol.clone(),
         };
+        let candidate_cap = config.budget.saturating_mul(4).max(config.budget);
         let mut cases = Vec::new();
-        for (interaction_id, interaction) in interactions {
+
+        'interactions: for (interaction_id, interaction) in interactions {
             if let Body::Json(body) = &interaction.response.body {
                 let body_plan = planner.plan(
                     body,
                     &PlannerConfig {
-                        budget: usize::MAX,
+                        budget: config.budget,
                         concurrency: 1,
                         seed: config.seed,
                         retry_limit: 0,
@@ -184,6 +207,9 @@ impl ExperimentRunner {
                             delay_ms: 0,
                         },
                     });
+                    if cases.len() >= candidate_cap {
+                        break 'interactions;
+                    }
                 }
             }
 
@@ -204,6 +230,9 @@ impl ExperimentRunner {
                         delay_ms: mutation.delay_ms,
                     },
                 });
+                if cases.len() >= candidate_cap {
+                    break 'interactions;
+                }
             }
         }
 
@@ -223,23 +252,35 @@ impl ExperimentRunner {
 
     pub async fn run(&self, config: &ExperimentConfig) -> Result<ExperimentReport, ExperimentError> {
         let cases = self.plan(config)?;
-        self.controller.reset().await;
-        let baseline = self
-            .oracle
-            .evaluate()
-            .await
-            .map_err(|error| ExperimentError::BaselineFailed(error.to_string()))?;
-        if baseline.status != OracleStatus::Pass {
-            return Err(ExperimentError::BaselineFailed(baseline.summary));
-        }
-
         let run_fingerprint = RunFingerprint {
             scenario_id: &config.scenario_id,
             source_revision: config.source_revision.as_deref(),
             seed: config.seed,
-            mutation_ids: cases.iter().map(|case| case.mutation.id.as_str()).collect(),
+            mutation_ids: cases
+                .iter()
+                .map(|case| case.mutation.id.as_str())
+                .collect(),
         };
         let run_id = stable_id("run", &run_fingerprint)?;
+
+        self.controller.reset().await;
+        let baseline_evaluated = self.oracle.evaluate().await;
+        let baseline_artifact = oracle_artifact(self.oracle.kind(), baseline_evaluated);
+        let baseline_ref = persist_run_artifact(
+            &self.workspace,
+            &run_id,
+            "baseline-oracle.json",
+            &baseline_artifact,
+        )?;
+        if baseline_artifact.outcome != TrialOutcome::Pass {
+            return Err(ExperimentError::BaselineFailed(baseline_artifact.summary));
+        }
+
+        let baseline = BaselineResult {
+            duration_ms: baseline_artifact.duration_ms,
+            summary: baseline_artifact.summary,
+            artifact_refs: vec![baseline_ref],
+        };
         let mut results = Vec::with_capacity(cases.len());
 
         for case in &cases {
@@ -253,14 +294,20 @@ impl ExperimentRunner {
 
             let evaluated = self.oracle.evaluate().await;
             self.controller.reset().await;
-            let (outcome, duration_ms, summary) = trial_outcome(evaluated);
+            let artifact = oracle_artifact(self.oracle.kind(), evaluated);
             let evidence_fingerprint = EvidenceFingerprint {
                 run_id: &run_id,
                 interaction_id: &case.interaction_id,
                 mutation_id: &case.mutation.id,
-                outcome,
+                outcome: artifact.outcome,
             };
             let evidence_id = stable_id("ev", &evidence_fingerprint)?;
+            let artifact_ref = persist_evidence_artifact(
+                &self.workspace,
+                &evidence_id,
+                "oracle.json",
+                &artifact,
+            )?;
             results.push(TrialResult {
                 evidence_id,
                 interaction_id: case.interaction_id.clone(),
@@ -268,9 +315,10 @@ impl ExperimentRunner {
                 kind: case.mutation.kind,
                 target: case.mutation.target.clone(),
                 description: case.mutation.description.clone(),
-                outcome,
-                duration_ms,
-                summary,
+                outcome: artifact.outcome,
+                duration_ms: artifact.duration_ms,
+                summary: artifact.summary,
+                artifact_refs: vec![artifact_ref],
             });
         }
 
@@ -290,10 +338,7 @@ impl ExperimentRunner {
             source_revision: config.source_revision.clone(),
             seed: config.seed,
             budget: config.budget,
-            baseline: BaselineResult {
-                duration_ms: baseline.duration_ms,
-                summary: baseline.summary,
-            },
+            baseline,
             planned_mutations: cases.len(),
             executed_mutations: results.len(),
             passes,
@@ -322,28 +367,72 @@ struct EvidenceFingerprint<'a> {
     outcome: TrialOutcome,
 }
 
-fn trial_outcome(result: Result<OracleResult, wireassume_oracles::OracleError>) -> (TrialOutcome, u64, String) {
+fn oracle_artifact(kind: &str, result: Result<OracleResult, OracleError>) -> OracleArtifact {
     match result {
-        Ok(result) => {
-            let outcome = match result.status {
+        Ok(result) => OracleArtifact {
+            oracle_kind: kind.to_string(),
+            outcome: match result.status {
                 OracleStatus::Pass => TrialOutcome::Pass,
                 OracleStatus::Fail => TrialOutcome::Fail,
                 OracleStatus::Inconclusive => TrialOutcome::Inconclusive,
-            };
-            (outcome, result.duration_ms, result.summary)
-        }
-        Err(error) => (TrialOutcome::Inconclusive, 0, error.to_string()),
+            },
+            duration_ms: result.duration_ms,
+            summary: result.summary,
+            stdout: result.stdout,
+            stderr: result.stderr,
+        },
+        Err(error) => OracleArtifact {
+            oracle_kind: kind.to_string(),
+            outcome: TrialOutcome::Inconclusive,
+            duration_ms: 0,
+            summary: error.to_string(),
+            stdout: String::new(),
+            stderr: error.to_string(),
+        },
     }
 }
 
 fn persist_report(workspace: &Path, report: &ExperimentReport) -> Result<(), ExperimentError> {
     let directory = workspace.join("runs").join(&report.run_id);
     fs::create_dir_all(&directory)?;
-    let path = directory.join("report.json");
-    let tmp = directory.join("report.json.tmp");
-    fs::write(&tmp, canonical_json(report)?)?;
+    write_atomic_json(&directory.join("report.json"), report)
+}
+
+fn persist_run_artifact<T: Serialize>(
+    workspace: &Path,
+    run_id: &str,
+    name: &str,
+    value: &T,
+) -> Result<String, ExperimentError> {
+    let relative = PathBuf::from("runs").join(run_id).join(name);
+    let path = workspace.join(&relative);
+    let parent = path.parent().expect("run artifact always has a parent");
+    fs::create_dir_all(parent)?;
+    write_atomic_json(&path, value)?;
+    Ok(relative.to_string_lossy().replace('\\', "/"))
+}
+
+fn persist_evidence_artifact<T: Serialize>(
+    workspace: &Path,
+    evidence_id: &str,
+    name: &str,
+    value: &T,
+) -> Result<String, ExperimentError> {
+    let relative = PathBuf::from("evidence").join(evidence_id).join(name);
+    let path = workspace.join(&relative);
+    let parent = path
+        .parent()
+        .expect("evidence artifact always has a parent");
+    fs::create_dir_all(parent)?;
+    write_atomic_json(&path, value)?;
+    Ok(relative.to_string_lossy().replace('\\', "/"))
+}
+
+fn write_atomic_json<T: Serialize>(path: &Path, value: &T) -> Result<(), ExperimentError> {
+    let tmp = path.with_extension("tmp");
+    fs::write(&tmp, canonical_json(value)?)?;
     if path.exists() {
-        fs::remove_file(&path)?;
+        fs::remove_file(path)?;
     }
     fs::rename(tmp, path)?;
     Ok(())
@@ -351,32 +440,44 @@ fn persist_report(workspace: &Path, report: &ExperimentReport) -> Result<(), Exp
 
 fn validate_config(config: &ExperimentConfig) -> Result<(), ExperimentError> {
     if config.scenario_id.trim().is_empty() {
-        return Err(ExperimentError::Invalid("scenario_id must not be empty".into()));
+        return Err(ExperimentError::Invalid(
+            "scenario_id must not be empty".into(),
+        ));
     }
     if config.method.trim().is_empty() {
         return Err(ExperimentError::Invalid("method must not be empty".into()));
     }
     if config.path_pattern.trim().is_empty() {
-        return Err(ExperimentError::Invalid("path_pattern must not be empty".into()));
+        return Err(ExperimentError::Invalid(
+            "path_pattern must not be empty".into(),
+        ));
     }
     if config.budget == 0 {
-        return Err(ExperimentError::Invalid("budget must be greater than zero".into()));
+        return Err(ExperimentError::Invalid(
+            "budget must be greater than zero".into(),
+        ));
     }
     Ok(())
 }
 
 fn request_path(uri: &str) -> &str {
-    if let Ok(url) = Url::parse(uri) {
-        let path = url.path().to_string();
-        return Box::leak(path.into_boxed_str());
-    }
-    uri.split('?').next().unwrap_or(uri)
+    let path_and_query = if let Some(scheme_index) = uri.find("://") {
+        let authority_and_path = &uri[scheme_index + 3..];
+        match authority_and_path.find('/') {
+            Some(path_index) => &authority_and_path[path_index..],
+            None => "/",
+        }
+    } else {
+        uri
+    };
+    path_and_query.split('?').next().unwrap_or(path_and_query)
 }
 
 fn path_matches(pattern: &str, path: &str) -> bool {
     if !pattern.contains('*') {
         return pattern == path;
     }
+
     let mut rest = path;
     let mut first = true;
     for part in pattern.split('*') {
@@ -403,10 +504,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn request_path_does_not_allocate_or_leak_and_ignores_query() {
+        assert_eq!(
+            request_path("https://api.example.test/customers/1?page=2"),
+            "/customers/1"
+        );
+        assert_eq!(request_path("/customers/1?page=2"), "/customers/1");
+    }
+
+    #[test]
     fn wildcard_path_matching_is_ordered_and_anchored() {
         assert!(path_matches("/customers/*", "/customers/123"));
         assert!(path_matches("/v1/*/items/*", "/v1/acme/items/42"));
         assert!(!path_matches("/customers/*", "/orders/123"));
-        assert!(!path_matches("/customers/*/detail", "/customers/1/other"));
+        assert!(!path_matches(
+            "/customers/*/detail",
+            "/customers/1/other"
+        ));
     }
 }
