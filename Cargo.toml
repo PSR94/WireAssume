@@ -9,6 +9,7 @@ members = [
   "crates/replay",
   "crates/proxy",
   "crates/experiment",
+  "crates/contract-engine",
   "crates/cli",
 ]
 resolver = "2"
