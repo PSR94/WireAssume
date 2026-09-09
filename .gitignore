@@ -1,0 +1,15 @@
+/target
+/.wireassume
+.env
+.env.*
+!.env.example
+.DS_Store
+node_modules/
+.next/
+coverage/
+__pycache__/
+.pytest_cache/
+.venv/
+dist/
+build/
+*.pyc

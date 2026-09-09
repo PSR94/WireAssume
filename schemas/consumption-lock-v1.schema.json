@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wireassume.dev/schemas/consumption-lock-v1.schema.json",
+  "title": "WireAssume consumption.lock v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "metadata", "provider", "consumer", "scenario", "endpoint", "requirements", "assumptions", "evidence"],
+  "properties": {
+    "schema": { "const": "wireassume.consumption/v1" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "provider": { "$ref": "#/$defs/provider" },
+    "consumer": { "$ref": "#/$defs/consumer" },
+    "scenario": { "$ref": "#/$defs/scenario" },
+    "endpoint": { "$ref": "#/$defs/endpoint" },
+    "requirements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assumption" }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "history": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/historyEntry" },
+      "default": []
+    }
+  },
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{2,127}$"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool_version", "generated_at", "seed", "source_revision"],
+      "properties": {
+        "tool_version": { "type": "string", "minLength": 1 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "seed": { "type": "integer", "minimum": 0 },
+        "source_revision": { "$ref": "#/$defs/revision" },
+        "corpus_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "config_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": { "enum": ["git", "version", "workspace", "unknown"] },
+        "value": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string" }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "base_url": { "type": "string", "format": "uri" },
+        "spec": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "source"],
+          "properties": {
+            "kind": { "enum": ["openapi-3.0", "openapi-3.1", "unknown"] },
+            "source": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        }
+      }
+    },
+    "consumer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "name": { "type": "string", "minLength": 1 },
+        "oracle": { "enum": ["command", "http", "playwright", "custom"] }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "path"],
+      "properties": {
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] },
+        "path": { "type": "string", "pattern": "^/" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": { "enum": ["response-status", "response-header", "response-body", "timing", "pagination", "error"] },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "target", "confidence", "severity", "evidence_refs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "target": { "$ref": "#/$defs/target" },
+        "presence": { "enum": ["required", "optional", "untested"] },
+        "types": {
+          "type": "array",
+          "items": { "enum": ["null", "boolean", "integer", "number", "string", "array", "object"] },
+          "uniqueItems": true
+        },
+        "nullable": { "type": "boolean" },
+        "accepted_empty": { "type": "boolean" },
+        "accepted_values": { "type": "array", "items": {} },
+        "confidence": { "enum": ["observed", "repeated", "strong"] },
+        "severity": { "enum": ["low", "medium", "high", "critical"] },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stableId" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "target", "behavior", "confidence", "severity", "evidence_refs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "type": {
+          "enum": ["presence", "nullability", "type", "enum", "numeric-range", "string-format", "array-order", "cardinality", "header", "content-type", "status-code", "error-shape", "pagination", "timing", "retry", "idempotency", "duplicate-handling", "unknown-field-tolerance", "redirect-behavior"]
+        },
+        "target": { "$ref": "#/$defs/target" },
+        "behavior": { "type": "string", "minLength": 1 },
+        "confidence": { "enum": ["observed", "repeated", "strong"] },
+        "severity": { "enum": ["low", "medium", "high", "critical"] },
+        "provider_comparison": {
+          "enum": ["not-compared", "guaranteed", "consumer-stricter", "consumer-more-tolerant", "inconclusive"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stableId" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "interaction_id", "mutation_id", "outcome", "artifact_refs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/stableId" },
+        "interaction_id": { "$ref": "#/$defs/stableId" },
+        "mutation_id": { "$ref": "#/$defs/stableId" },
+        "outcome": { "enum": ["pass", "fail", "inconclusive", "cancelled"] },
+        "failure_summary": { "type": "string" },
+        "artifact_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "historyEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "assumption_ids"],
+      "properties": {
+        "revision": { "$ref": "#/$defs/revision" },
+        "assumption_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stableId" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
