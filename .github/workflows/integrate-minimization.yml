@@ -1,0 +1,49 @@
+name: Integrate response minimization
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Apply minimization integration patch
+        run: python3 scripts/integrate_minimization.py
+      - name: Refresh lockfile for local crate dependency
+        run: cargo generate-lockfile
+      - name: Format
+        run: cargo fmt --all
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --workspace --locked
+      - name: Prove minimized OrbitDesk demo end to end
+        run: |
+          cargo build --workspace --locked
+          cd demo
+          rm -rf .wireassume/runs .wireassume/evidence consumption.lock.yml
+          ../target/debug/wireassume --config wireassume.yml analyze --scenario customer-profile --source-revision demo-v1
+          python3 verify_demo.py
+      - name: Commit validated minimization integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock crates/experiment/Cargo.toml crates/experiment/src/lib.rs crates/experiment/src/minimize.rs crates/contract-engine/src/lib.rs crates/cli/src/main.rs demo/verify_demo.py demo/README.md docs/project-status.md
+          if git diff --cached --quiet; then
+            echo "No minimization integration changes to commit."
+            exit 0
+          fi
+          git commit -m "feat(analyze): integrate async ddmin with real consumer oracle"
+          git push
