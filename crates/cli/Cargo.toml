@@ -11,9 +11,14 @@ path = "src/main.rs"
 
 [dependencies]
 wireassume-config = { path = "../config" }
+wireassume-contract-engine = { path = "../contract-engine" }
+wireassume-experiment = { path = "../experiment" }
+wireassume-model = { path = "../model" }
 wireassume-mutation-engine = { path = "../mutation-engine" }
+wireassume-oracles = { path = "../oracles" }
 wireassume-proxy = { path = "../proxy" }
 anyhow.workspace = true
+chrono.workspace = true
 clap.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
