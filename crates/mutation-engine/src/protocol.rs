@@ -79,6 +79,7 @@ impl ProtocolMutator {
         self.body_mutations(baseline, seed, &mut out);
         self.error_mutations(baseline, seed, &mut out);
         self.pagination_mutations(baseline, seed, &mut out);
+
         if self.config.delay_ms > 0 {
             out.push(ProtocolMutation::new(
                 MutationKind::DelayResponse,
@@ -90,11 +91,10 @@ impl ProtocolMutator {
                 self.config.delay_ms,
             ));
         }
+
         let mut seen = HashSet::new();
         out.into_iter()
-            .filter(|mutation| {
-                mutation.response != *baseline || mutation.delay_ms > 0
-            })
+            .filter(|mutation| mutation.response != *baseline || mutation.delay_ms > 0)
             .filter(|mutation| seen.insert(mutation.id.clone()))
             .collect()
     }
@@ -143,7 +143,8 @@ impl ProtocolMutator {
         out: &mut Vec<ProtocolMutation>,
     ) {
         let mut headers = baseline.headers.clone();
-        headers.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
+        headers.sort_by_key(|header| header.name.to_ascii_lowercase());
+
         for header in headers {
             let mut response = baseline.clone();
             response
@@ -161,7 +162,11 @@ impl ProtocolMutator {
         }
 
         let mut content_type = baseline.clone();
-        set_header(&mut content_type.headers, "content-type", "text/plain; charset=utf-8");
+        set_header(
+            &mut content_type.headers,
+            "content-type",
+            "text/plain; charset=utf-8",
+        );
         out.push(ProtocolMutation::new(
             MutationKind::ChangeContentType,
             "response.header.content-type",
@@ -236,10 +241,12 @@ impl ProtocolMutator {
                 baseline,
                 seed,
                 out,
-                MutationKind::ErrorCodeMissing,
-                "response.body.code",
-                "remove error code",
-                "error-remove-code",
+                ObjectChangeSpec::new(
+                    MutationKind::ErrorCodeMissing,
+                    "response.body.code",
+                    "remove error code",
+                    "error-remove-code",
+                ),
                 |map| {
                     map.remove("code");
                 },
@@ -248,24 +255,29 @@ impl ProtocolMutator {
                 baseline,
                 seed,
                 out,
-                MutationKind::UnknownErrorCode,
-                "response.body.code",
-                "replace error code with an unknown value",
-                "error-unknown-code",
+                ObjectChangeSpec::new(
+                    MutationKind::UnknownErrorCode,
+                    "response.body.code",
+                    "replace error code with an unknown value",
+                    "error-unknown-code",
+                ),
                 |map| {
                     map.insert("code".into(), json!("__WIREASSUME_UNKNOWN__"));
                 },
             );
         }
+
         if object.contains_key("message") {
             push_json_object_change(
                 baseline,
                 seed,
                 out,
-                MutationKind::ErrorMessageMissing,
-                "response.body.message",
-                "remove error message",
-                "error-remove-message",
+                ObjectChangeSpec::new(
+                    MutationKind::ErrorMessageMissing,
+                    "response.body.message",
+                    "remove error message",
+                    "error-remove-message",
+                ),
                 |map| {
                     map.remove("message");
                 },
@@ -286,7 +298,11 @@ impl ProtocolMutator {
 
         let mut non_json = baseline.clone();
         non_json.body = Body::Text("upstream error".into());
-        set_header(&mut non_json.headers, "content-type", "text/plain; charset=utf-8");
+        set_header(
+            &mut non_json.headers,
+            "content-type",
+            "text/plain; charset=utf-8",
+        );
         out.push(ProtocolMutation::new(
             MutationKind::NonJsonErrorBody,
             "response.body",
@@ -299,7 +315,11 @@ impl ProtocolMutator {
 
         let mut html = baseline.clone();
         html.body = Body::Text("<!doctype html><title>Upstream error</title>".into());
-        set_header(&mut html.headers, "content-type", "text/html; charset=utf-8");
+        set_header(
+            &mut html.headers,
+            "content-type",
+            "text/html; charset=utf-8",
+        );
         out.push(ProtocolMutation::new(
             MutationKind::HtmlErrorPage,
             "response.body",
@@ -322,10 +342,8 @@ impl ProtocolMutator {
         };
         let mut pointers = Vec::new();
         find_pagination_fields(value, "", &mut pointers);
+
         for (pointer, field_kind) in pointers {
-            let Body::Json(value) = &baseline.body else {
-                continue;
-            };
             if let Some(mutated) = remove_json_pointer(value, &pointer) {
                 let mut response = baseline.clone();
                 response.body = Body::Json(mutated);
@@ -344,6 +362,7 @@ impl ProtocolMutator {
                     0,
                 ));
             }
+
             if field_kind == PaginationField::Cursor {
                 if let Some(mutated) = replace_json_pointer(value, &pointer, Value::Null) {
                     let mut response = baseline.clone();
@@ -363,13 +382,40 @@ impl ProtocolMutator {
     }
 }
 
+struct ObjectChangeSpec<'a> {
+    kind: MutationKind,
+    target: &'a str,
+    description: &'a str,
+    variant: &'a str,
+}
+
+impl<'a> ObjectChangeSpec<'a> {
+    fn new(
+        kind: MutationKind,
+        target: &'a str,
+        description: &'a str,
+        variant: &'a str,
+    ) -> Self {
+        Self {
+            kind,
+            target,
+            description,
+            variant,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PaginationField {
     Cursor,
     Metadata,
 }
 
-fn find_pagination_fields(value: &Value, pointer: &str, out: &mut Vec<(String, PaginationField)>) {
+fn find_pagination_fields(
+    value: &Value,
+    pointer: &str,
+    out: &mut Vec<(String, PaginationField)>,
+) {
     match value {
         Value::Object(map) => {
             let mut keys: Vec<_> = map.keys().collect();
@@ -377,13 +423,20 @@ fn find_pagination_fields(value: &Value, pointer: &str, out: &mut Vec<(String, P
             for key in keys {
                 let escaped = key.replace('~', "~0").replace('/', "~1");
                 let child_pointer = format!("{pointer}/{escaped}");
-                let normalized = key.to_ascii_lowercase().replace(['-', '_'], "");
+                let normalized: String = key
+                    .to_ascii_lowercase()
+                    .chars()
+                    .filter(|ch| *ch != '-' && *ch != '_')
+                    .collect();
                 if matches!(
                     normalized.as_str(),
                     "cursor" | "nextcursor" | "nextpagecursor" | "nexttoken" | "pagetoken"
                 ) {
                     out.push((child_pointer.clone(), PaginationField::Cursor));
-                } else if matches!(normalized.as_str(), "pagination" | "pagemeta" | "pagemetadata") {
+                } else if matches!(
+                    normalized.as_str(),
+                    "pagination" | "pagemeta" | "pagemetadata"
+                ) {
                     out.push((child_pointer.clone(), PaginationField::Metadata));
                 }
                 find_pagination_fields(&map[key], &child_pointer, out);
@@ -413,6 +466,9 @@ fn remove_json_pointer(value: &Value, pointer: &str) -> Option<Value> {
         }
         Value::Array(items) => {
             let index: usize = key.parse().ok()?;
+            if index >= items.len() {
+                return None;
+            }
             items.remove(index);
         }
         _ => return None,
@@ -433,17 +489,14 @@ fn set_header(headers: &mut Vec<Header>, name: &str, value: &str) {
         name: name.into(),
         value: value.into(),
     });
-    headers.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
+    headers.sort_by_key(|header| header.name.to_ascii_lowercase());
 }
 
 fn push_json_object_change<F>(
     baseline: &ResponseRecord,
     seed: u64,
     out: &mut Vec<ProtocolMutation>,
-    kind: MutationKind,
-    target: &str,
-    description: &str,
-    variant: &str,
+    spec: ObjectChangeSpec<'_>,
     change: F,
 ) where
     F: FnOnce(&mut serde_json::Map<String, Value>),
@@ -455,11 +508,11 @@ fn push_json_object_change<F>(
     let mut response = baseline.clone();
     response.body = Body::Json(Value::Object(object));
     out.push(ProtocolMutation::new(
-        kind,
-        target,
-        description,
+        spec.kind,
+        spec.target,
+        spec.description,
         seed,
-        variant,
+        spec.variant,
         response,
         0,
     ));
@@ -492,7 +545,10 @@ mod tests {
     fn protocol_generation_is_deterministic() {
         let baseline = response(200, json!({"items": [1, 2], "next_cursor": "abc"}));
         let mutator = ProtocolMutator::default();
-        assert_eq!(mutator.generate(&baseline, 42), mutator.generate(&baseline, 42));
+        assert_eq!(
+            mutator.generate(&baseline, 42),
+            mutator.generate(&baseline, 42)
+        );
     }
 
     #[test]
