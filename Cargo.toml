@@ -1,6 +1,8 @@
 [workspace]
 members = [
   "crates/model",
+  "crates/mutation-engine",
+  "crates/delta-debugger",
 ]
 resolver = "2"
 
@@ -21,3 +23,5 @@ hex = "0.4"
 thiserror = "2.0"
 url = "2.5"
 tracing = "0.1"
+rand = "0.8"
+rand_chacha = "0.3"
