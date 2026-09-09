@@ -1,11 +1,24 @@
 use crate::wire::{body_to_model, headers_to_model, is_hop_by_hop_header};
-use axum::{body::{to_bytes, Body as AxumBody}, extract::State, http::{Request, Response, StatusCode}, response::IntoResponse, routing::any, Router};
-use bytes::Bytes;
+use axum::{
+    body::{to_bytes, Body as AxumBody},
+    extract::State,
+    http::{Request, Response, StatusCode},
+    response::IntoResponse,
+    routing::any,
+    Router,
+};
 use chrono::{SecondsFormat, Utc};
 use reqwest::{redirect::Policy, Client};
-use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Instant};
+use std::{
+    net::SocketAddr,
+    path::PathBuf,
+    sync::Arc,
+    time::Instant,
+};
 use url::Url;
-use wireassume_model::{CorpusStore, Interaction, InteractionMetadata, RedactionPolicy, RequestRecord, ResponseRecord};
+use wireassume_model::{
+    CorpusStore, Interaction, InteractionMetadata, RedactionPolicy, RequestRecord, ResponseRecord,
+};
 
 #[derive(Debug, Clone)]
 pub struct RecordProxyConfig {
@@ -49,18 +62,31 @@ pub async fn serve_record(config: RecordProxyConfig) -> Result<(), String> {
         .map_err(|error| format!("record proxy failed: {error}"))
 }
 
-async fn handler(State(state): State<Arc<RecordState>>, request: Request<AxumBody>) -> impl IntoResponse {
+async fn handler(
+    State(state): State<Arc<RecordState>>,
+    request: Request<AxumBody>,
+) -> impl IntoResponse {
     match forward_and_record(state, request).await {
         Ok(response) => response,
         Err(error) => error.into_response(),
     }
 }
 
-async fn forward_and_record(state: Arc<RecordState>, request: Request<AxumBody>) -> Result<Response<AxumBody>, ProxyFailure> {
+async fn forward_and_record(
+    state: Arc<RecordState>,
+    request: Request<AxumBody>,
+) -> Result<Response<AxumBody>, ProxyFailure> {
     let (parts, body) = request.into_parts();
     let request_bytes = to_bytes(body, state.config.max_payload_bytes)
         .await
-        .map_err(|error| ProxyFailure::new(StatusCode::PAYLOAD_TOO_LARGE, format!("request body exceeded configured limit or could not be read: {error}")))?;
+        .map_err(|error| {
+            ProxyFailure::new(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                format!(
+                    "request body exceeded configured limit or could not be read: {error}"
+                ),
+            )
+        })?;
 
     let mut upstream = state.config.upstream.clone();
     upstream.set_path(parts.uri.path());
@@ -78,20 +104,39 @@ async fn forward_and_record(state: Arc<RecordState>, request: Request<AxumBody>)
         .body(request_bytes.clone())
         .send()
         .await
-        .map_err(|error| ProxyFailure::new(StatusCode::BAD_GATEWAY, format!("upstream request to {upstream} failed: {error}")))?;
+        .map_err(|error| {
+            ProxyFailure::new(
+                StatusCode::BAD_GATEWAY,
+                format!("upstream request to {upstream} failed: {error}"),
+            )
+        })?;
     let duration_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
     let status = upstream_response.status();
     let response_headers = upstream_response.headers().clone();
-    let response_bytes = upstream_response
-        .bytes()
-        .await
-        .map_err(|error| ProxyFailure::new(StatusCode::BAD_GATEWAY, format!("failed to read upstream response: {error}")))?;
+    let response_bytes = upstream_response.bytes().await.map_err(|error| {
+        ProxyFailure::new(
+            StatusCode::BAD_GATEWAY,
+            format!("failed to read upstream response: {error}"),
+        )
+    })?;
     if response_bytes.len() > state.config.max_payload_bytes {
-        return Err(ProxyFailure::new(StatusCode::PAYLOAD_TOO_LARGE, format!("upstream response body {} bytes exceeds configured limit {}", response_bytes.len(), state.config.max_payload_bytes)));
+        return Err(ProxyFailure::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!(
+                "upstream response body {} bytes exceeds configured limit {}",
+                response_bytes.len(),
+                state.config.max_payload_bytes
+            ),
+        ));
     }
 
-    let request_content_type = parts.headers.get("content-type").and_then(|v| v.to_str().ok());
-    let response_content_type = response_headers.get("content-type").and_then(|v| v.to_str().ok());
+    let request_content_type = parts
+        .headers
+        .get("content-type")
+        .and_then(|value| value.to_str().ok());
+    let response_content_type = response_headers
+        .get("content-type")
+        .and_then(|value| value.to_str().ok());
     let interaction = Interaction {
         request: RequestRecord {
             method: parts.method.to_string(),
@@ -112,9 +157,23 @@ async fn forward_and_record(state: Arc<RecordState>, request: Request<AxumBody>)
             correlation_id: None,
         },
     };
-    let persisted = state.store.persist(&interaction, &state.config.redaction)
-        .map_err(|error| ProxyFailure::new(StatusCode::INTERNAL_SERVER_ERROR, format!("upstream responded but recording failed; response withheld to avoid missing evidence: {error}")))?;
-    tracing::info!(interaction_id = %persisted.id, status = status.as_u16(), duration_ms, "recorded provider interaction");
+    let persisted = state
+        .store
+        .persist(&interaction, &state.config.redaction)
+        .map_err(|error| {
+            ProxyFailure::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!(
+                    "upstream responded but recording failed; response withheld to avoid missing evidence: {error}"
+                ),
+            )
+        })?;
+    tracing::info!(
+        interaction_id = %persisted.id,
+        status = status.as_u16(),
+        duration_ms,
+        "recorded provider interaction"
+    );
 
     let mut builder = Response::builder().status(status);
     for (name, value) in &response_headers {
@@ -122,8 +181,12 @@ async fn forward_and_record(state: Arc<RecordState>, request: Request<AxumBody>)
             builder = builder.header(name, value);
         }
     }
-    builder.body(AxumBody::from(response_bytes))
-        .map_err(|error| ProxyFailure::new(StatusCode::INTERNAL_SERVER_ERROR, format!("failed to construct proxy response: {error}")))
+    builder.body(AxumBody::from(response_bytes)).map_err(|error| {
+        ProxyFailure::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("failed to construct proxy response: {error}"),
+        )
+    })
 }
 
 struct ProxyFailure {
@@ -132,7 +195,9 @@ struct ProxyFailure {
 }
 
 impl ProxyFailure {
-    fn new(status: StatusCode, message: String) -> Self { Self { status, message } }
+    fn new(status: StatusCode, message: String) -> Self {
+        Self { status, message }
+    }
 }
 
 impl IntoResponse for ProxyFailure {
@@ -142,10 +207,14 @@ impl IntoResponse for ProxyFailure {
 }
 
 async fn shutdown_signal() {
-    let ctrl_c = async { let _ = tokio::signal::ctrl_c().await; };
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
     #[cfg(unix)]
     let terminate = async {
-        if let Ok(mut signal) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+        if let Ok(mut signal) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
             signal.recv().await;
         }
     };
@@ -164,6 +233,9 @@ mod tests {
         let uri: axum::http::Uri = "/customers/1?page=2".parse().unwrap();
         upstream.set_path(uri.path());
         upstream.set_query(uri.query());
-        assert_eq!(upstream.as_str(), "https://allowed.example/customers/1?page=2");
+        assert_eq!(
+            upstream.as_str(),
+            "https://allowed.example/customers/1?page=2"
+        );
     }
 }
