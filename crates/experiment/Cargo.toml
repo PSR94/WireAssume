@@ -1,0 +1,18 @@
+[package]
+name = "wireassume-experiment"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+wireassume-model = { path = "../model" }
+wireassume-mutation-engine = { path = "../mutation-engine" }
+wireassume-oracles = { path = "../oracles" }
+wireassume-proxy = { path = "../proxy" }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+url.workspace = true
