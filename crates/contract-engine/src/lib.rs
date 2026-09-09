@@ -176,10 +176,7 @@ pub fn build_consumption_lock(
 
         if result.outcome == TrialOutcome::Fail {
             if let Some((assumption_type, behavior, severity)) = assumption_from_failure(result) {
-                let key = format!(
-                    "{assumption_type}\u{0}{}\u{0}{behavior}",
-                    result.target
-                );
+                let key = format!("{assumption_type}\u{0}{}\u{0}{behavior}", result.target);
                 let builder = assumption_builders
                     .entry(key)
                     .or_insert_with(|| AssumptionBuilder {
@@ -271,11 +268,10 @@ pub fn analyze_contract(report: &ExperimentReport) -> ContractAnalysis {
         });
     }
 
-    let score = if total_weight == 0 {
-        0
-    } else {
-        ((passed_weight * 100 + total_weight / 2) / total_weight).min(100) as u8
-    };
+    let score = (passed_weight * 100 + total_weight / 2)
+        .checked_div(total_weight)
+        .unwrap_or(0)
+        .min(100) as u8;
 
     ContractAnalysis {
         dependency_resilience_score: score,
@@ -388,11 +384,7 @@ struct AssumptionBuilder {
 
 impl AssumptionBuilder {
     fn finish(self) -> Result<Assumption, serde_json::Error> {
-        let fingerprint = (
-            &self.assumption_type,
-            &self.target.path,
-            &self.behavior,
-        );
+        let fingerprint = (&self.assumption_type, &self.target.path, &self.behavior);
         Ok(Assumption {
             id: stable_id("asm", &fingerprint)?,
             assumption_type: self.assumption_type,
@@ -520,9 +512,11 @@ fn assumption_from_failure(
         NullField => ("nullability", "null is not tolerated", "high"),
         WrongPrimitiveType => ("type", "observed value type is significant", "high"),
         UnknownEnum => ("enum", "unknown enum-like value is not tolerated", "high"),
-        NumericZero | NegativeNumber | VeryLargeNumber | FloatInsteadOfInteger => {
-            ("numeric-range", "numeric edge case is not tolerated", "medium")
-        }
+        NumericZero | NegativeNumber | VeryLargeNumber | FloatInsteadOfInteger => (
+            "numeric-range",
+            "numeric edge case is not tolerated",
+            "medium",
+        ),
         EmptyString | WhitespaceString | UnicodeString | LongString => (
             "string-format",
             "string edge case is not tolerated",
@@ -547,7 +541,11 @@ fn assumption_from_failure(
             "additional unknown field is not tolerated",
             "medium",
         ),
-        RemoveHeader => ("header", "response header is required by the workflow", "high"),
+        RemoveHeader => (
+            "header",
+            "response header is required by the workflow",
+            "high",
+        ),
         ChangeContentType => (
             "content-type",
             "Content-Type semantics affect the workflow",
@@ -596,17 +594,45 @@ fn severity_for(kind: MutationKind) -> &'static str {
 fn assumption_from_kind(kind: MutationKind) -> Option<(&'static str, &'static str)> {
     use MutationKind::*;
     Some(match kind {
-        RemoveField | NullField | WrongPrimitiveType | UnknownEnum | ReverseArray | ShuffleArray
-        | RemoveHeader | ChangeContentType | StatusCode | ErrorCodeMissing | ErrorMessageMissing
-        | EmptyErrorObject | NonJsonErrorBody | HtmlErrorPage | UnknownErrorCode
-        | PaginationMissingCursor | PaginationNullCursor | PaginationMissingMetadata => {
-            ("structural", "high")
-        }
-        NumericZero | NegativeNumber | VeryLargeNumber | FloatInsteadOfInteger | EmptyString
-        | WhitespaceString | UnicodeString | LongString | EmptyArray | EmptyObject
-        | DuplicateArrayItem | DuplicateValue | RemoveFirstArrayItem | RemoveLastArrayItem
-        | OneArrayItem | RepeatedArrayItems | AdditionalUnknownProperty | Redirect | EmptyResponse
-        | MalformedBody | DelayResponse => ("edge", "medium"),
+        RemoveField
+        | NullField
+        | WrongPrimitiveType
+        | UnknownEnum
+        | ReverseArray
+        | ShuffleArray
+        | RemoveHeader
+        | ChangeContentType
+        | StatusCode
+        | ErrorCodeMissing
+        | ErrorMessageMissing
+        | EmptyErrorObject
+        | NonJsonErrorBody
+        | HtmlErrorPage
+        | UnknownErrorCode
+        | PaginationMissingCursor
+        | PaginationNullCursor
+        | PaginationMissingMetadata => ("structural", "high"),
+        NumericZero
+        | NegativeNumber
+        | VeryLargeNumber
+        | FloatInsteadOfInteger
+        | EmptyString
+        | WhitespaceString
+        | UnicodeString
+        | LongString
+        | EmptyArray
+        | EmptyObject
+        | DuplicateArrayItem
+        | DuplicateValue
+        | RemoveFirstArrayItem
+        | RemoveLastArrayItem
+        | OneArrayItem
+        | RepeatedArrayItems
+        | AdditionalUnknownProperty
+        | Redirect
+        | EmptyResponse
+        | MalformedBody
+        | DelayResponse => ("edge", "medium"),
         AdditionalHeader => return None,
     })
 }
@@ -674,12 +700,7 @@ mod tests {
         }
     }
 
-    fn trial(
-        kind: MutationKind,
-        outcome: TrialOutcome,
-        target: &str,
-        id: &str,
-    ) -> TrialResult {
+    fn trial(kind: MutationKind, outcome: TrialOutcome, target: &str, id: &str) -> TrialResult {
         TrialResult {
             evidence_id: format!("ev_{id}"),
             interaction_id: "int_1".into(),
