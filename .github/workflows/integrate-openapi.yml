@@ -18,8 +18,9 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Wire comparison into contract engine and CLI
-        shell: python
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
 
           lib = Path("crates/contract-engine/src/lib.rs")
@@ -123,6 +124,7 @@ jobs:
           elif score_new not in text:
               raise SystemExit("CLI output marker missing")
           cli.write_text(text)
+          PY
       - name: Format
         run: cargo fmt --all
       - name: Check formatting
