@@ -1,0 +1,29 @@
+name: OrbitDesk demo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  customer-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Build WireAssume
+        run: cargo build --workspace --locked
+      - name: Analyze OrbitDesk customer profile
+        working-directory: demo
+        run: |
+          rm -rf .wireassume/runs .wireassume/evidence consumption.lock.yml
+          ../target/debug/wireassume --config wireassume.yml analyze --scenario customer-profile --source-revision demo-v1
+      - name: Verify experimentally inferred contract
+        working-directory: demo
+        run: python3 verify_demo.py
