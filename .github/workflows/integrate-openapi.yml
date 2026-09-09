@@ -17,114 +17,8 @@ jobs:
           toolchain: 1.98.0
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Wire comparison into contract engine and CLI
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          lib = Path("crates/contract-engine/src/lib.rs")
-          text = lib.read_text()
-          marker = "use wireassume_mutation_engine::MutationKind;\n"
-          addition = marker + "\nmod openapi;\npub use openapi::{apply_openapi_comparison, OpenApiComparison, ProviderMismatch};\n"
-          if "mod openapi;" not in text:
-              if marker not in text:
-                  raise SystemExit("contract-engine import marker missing")
-              text = text.replace(marker, addition, 1)
-          markdown_old = '''            out.push_str(&format!(
-                "Severity: **{}** · Confidence: **{}**\\n\\n",
-                assumption.severity, assumption.confidence
-            ));'''
-          markdown_new = '''            out.push_str(&format!(
-                "Severity: **{}** · Confidence: **{}** · Provider comparison: **{}**\\n\\n",
-                assumption.severity, assumption.confidence, assumption.provider_comparison
-            ));'''
-          if markdown_old in text:
-              text = text.replace(markdown_old, markdown_new, 1)
-          elif markdown_new not in text:
-              raise SystemExit("contract markdown marker missing")
-          lib.write_text(text)
-
-          cli = Path("crates/cli/src/main.rs")
-          text = cli.read_text()
-          import_old = '''use wireassume_contract_engine::{
-    analyze_contract, build_consumption_lock, to_json, to_markdown, to_yaml, ContractContext,
-};'''
-          import_new = '''use wireassume_contract_engine::{
-    analyze_contract, apply_openapi_comparison, build_consumption_lock, to_json, to_markdown,
-    to_yaml, ContractContext,
-};'''
-          if import_old in text:
-              text = text.replace(import_old, import_new, 1)
-          elif import_new not in text:
-              raise SystemExit("CLI contract-engine import marker missing")
-
-          doctor_old = '''        "\\nNot yet claimed by this command: integrated delta minimization, OpenAPI comparison, browser step DSL, backend API, or dashboard services."
-    );'''
-          doctor_new = '''        "\\nNot yet claimed by this command: integrated delta minimization, browser step DSL, backend API, or dashboard services."
-    );'''
-          if doctor_old in text:
-              text = text.replace(doctor_old, doctor_new, 1)
-          elif doctor_new not in text:
-              raise SystemExit("doctor capability marker missing")
-
-          lock_old = '''    let lock = build_consumption_lock(&report, &baselines, &context)?;
-    let analysis = analyze_contract(&report);'''
-          lock_new = '''    let mut lock = build_consumption_lock(&report, &baselines, &context)?;
-    let provider_comparison = if let Some(openapi) = &config.provider.openapi {
-        let configured = Path::new(openapi);
-        let spec_path = if configured.is_absolute() {
-            configured.to_path_buf()
-        } else {
-            config_path
-                .parent()
-                .filter(|parent| !parent.as_os_str().is_empty())
-                .unwrap_or_else(|| Path::new("."))
-                .join(configured)
-        };
-        let document = fs::read_to_string(&spec_path)
-            .with_context(|| format!("read provider OpenAPI {}", spec_path.display()))?;
-        Some(apply_openapi_comparison(&mut lock, &document).with_context(|| {
-            format!("parse provider OpenAPI {}", spec_path.display())
-        })?)
-    } else {
-        None
-    };
-    let analysis = analyze_contract(&report);'''
-          if lock_old in text:
-              text = text.replace(lock_old, lock_new, 1)
-          elif lock_new not in text:
-              raise SystemExit("CLI lock construction marker missing")
-
-          score_old = '''    println!(
-        "Dependency Resilience Score: {} / 100",
-        analysis.dependency_resilience_score
-    );
-    println!("\\nRun: {}", report.run_id);'''
-          score_new = '''    println!(
-        "Dependency Resilience Score: {} / 100",
-        analysis.dependency_resilience_score
-    );
-    if let Some(comparison) = &provider_comparison {
-        println!("Provider spec comparisons: {}", comparison.compared_assumptions);
-        println!("Provider guarantee mismatches: {}", comparison.mismatches.len());
-        for mismatch in &comparison.mismatches {
-            println!(
-                "  ⚠ {} {}: provider={} classification={}",
-                mismatch.target,
-                mismatch.assumption_type,
-                mismatch.provider_guarantee,
-                mismatch.classification
-            );
-        }
-    }
-    println!("\\nRun: {}", report.run_id);'''
-          if score_old in text:
-              text = text.replace(score_old, score_new, 1)
-          elif score_new not in text:
-              raise SystemExit("CLI output marker missing")
-          cli.write_text(text)
-          PY
+      - name: Apply integration patch
+        run: python3 scripts/integrate_openapi.py
       - name: Format
         run: cargo fmt --all
       - name: Check formatting
@@ -133,7 +27,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
         run: cargo test --workspace --locked
-      - name: Prove demo still executes
+      - name: Prove demo end to end
         run: |
           cargo build --workspace --locked
           cd demo
@@ -144,7 +38,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/contract-engine/src/lib.rs crates/contract-engine/src/openapi.rs crates/cli/src/main.rs
+          git add crates/contract-engine/src/lib.rs crates/contract-engine/src/openapi.rs crates/cli/src/main.rs demo/verify_demo.py demo/README.md docs/project-status.md
           if git diff --cached --quiet; then
             echo "No integration changes to commit."
             exit 0
