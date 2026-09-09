@@ -167,7 +167,7 @@ fn doctor(config_path: &Path) -> Result<()> {
     println!("✓ evidence-producing analyze pipeline available");
     println!("✓ consumption.lock JSON/YAML/Markdown generation available");
     println!(
-        "\nNot yet claimed by this command: integrated delta minimization, browser step DSL, backend API, or dashboard services."
+        "\nNot yet claimed by this command: browser step DSL, backend API, or dashboard services."
     );
     Ok(())
 }
@@ -318,6 +318,23 @@ async fn analyze(
     println!("Scenario: {}", lock.scenario.name);
     println!("Endpoint: {} {}", lock.endpoint.method, lock.endpoint.path);
     println!("Mutations executed: {}", report.executed_mutations);
+    println!("Response minimizations: {}", report.minimizations.len());
+    for minimization in &report.minimizations {
+        let fields = if minimization.minimal_fields.is_empty() {
+            "<none>".to_string()
+        } else {
+            minimization.minimal_fields.join(", ")
+        };
+        println!(
+            "  {}: {} → {} fields; minimal [{}]; tests {}; established={}",
+            minimization.interaction_id,
+            minimization.original_fields.len(),
+            minimization.minimal_fields.len(),
+            fields,
+            minimization.tests_executed,
+            minimization.established
+        );
+    }
     println!("Consumer failures: {}", report.failures);
     println!("Inconclusive trials: {}", report.inconclusive);
     println!("Discovered assumptions: {}", lock.assumptions.len());

@@ -18,10 +18,10 @@ WireAssume is under active construction toward v0.1.0. This matrix distinguishes
 | HTTP oracle | Implemented | HTTP workflow oracle with timeout and pass/fail/inconclusive semantics. |
 | Playwright adapter | Partial | Playwright configuration can be executed through command-oracle infrastructure. Rich browser journeys/screenshots/console/network evidence are not implemented. |
 | Experiment runner | Implemented | Verifies baseline first, applies one counterfactual at a time, runs the real oracle, resets state, and persists evidence artifacts. |
-| Delta debugger | Implemented component | ddmin-family synchronous and asynchronous reducers exist and are unit tested. Full integration into `analyze` is still partial. |
+| Delta debugger | Integrated | ddmin-family synchronous/asynchronous reducers exist; `analyze` now performs async success-preserving response-field minimization through the real consumer oracle and persists the candidate-trial evidence. |
 | Assumption inference | Implemented | Contract inference consumes real experiment outcomes; failing counterfactuals create assumptions and inconclusive trials do not create tolerance claims. |
 | Tolerance/resilience analysis | Implemented | Deterministic tolerance map and weighted resilience score are derived from decisive experiment outcomes. |
-| `wireassume analyze` | Partial integration | Runs evidence-backed controlled mutation experiments and emits contract/report outputs. Integrated ddmin and provider-spec comparison are still required for the target vertical slice. |
+| `wireassume analyze` | Implemented vertical slice | Runs evidence-backed controlled mutations, async response-field minimization, deterministic inference, configured OpenAPI guarantee comparison, and lock/report output for the OrbitDesk/PeopleCRM scenario. Broader protocol coverage remains roadmap. |
 | OpenAPI comparison | Implemented initial slice | `analyze` compares experimentally observed response-body assumptions with configured OpenAPI 3.x required/nullable/type guarantees; unsupported shapes are reported as unknown. |
 | OrbitDesk + PeopleCRM demo | Implemented vertical slice | CI executes the real OrbitDesk command consumer against controlled PeopleCRM replay mutations and verifies evidence-backed email presence/non-null assumptions plus provider-spec mismatch classification. |
 | Backend API | Roadmap | FastAPI/PostgreSQL deferred until the deterministic CLI vertical slice is proven. |

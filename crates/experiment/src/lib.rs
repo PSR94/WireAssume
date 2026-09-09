@@ -17,6 +17,9 @@ use wireassume_mutation_engine::{
 use wireassume_oracles::{Oracle, OracleError, OracleResult, OracleStatus};
 use wireassume_proxy::{ExperimentReplayController, ResponseOverride};
 
+mod minimize;
+pub use minimize::{MinimizationArtifact, MinimizationTrial, ResponseMinimization};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExperimentConfig {
     pub scenario_id: String,
@@ -88,6 +91,8 @@ pub struct ExperimentReport {
     pub failures: usize,
     pub inconclusive: usize,
     pub results: Vec<TrialResult>,
+    #[serde(default)]
+    pub minimizations: Vec<ResponseMinimization>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -315,6 +320,31 @@ impl ExperimentRunner {
             });
         }
 
+        let store = CorpusStore::new(&self.workspace);
+        let interaction_ids: BTreeSet<_> = cases
+            .iter()
+            .map(|case| case.interaction_id.clone())
+            .collect();
+        let mut minimizations = Vec::new();
+        for interaction_id in interaction_ids {
+            let interaction = store.load(&interaction_id)?;
+            if let Some((mut summary, artifact)) = minimize::minimize_response_fields(
+                &interaction_id,
+                &interaction.response,
+                self.controller.clone(),
+                self.oracle.clone(),
+            )
+            .await
+            {
+                let artifact_name = format!("minimization-{}.json", summary.id);
+                let artifact_ref =
+                    persist_run_artifact(&self.workspace, &run_id, &artifact_name, &artifact)?;
+                summary.artifact_ref = artifact_ref;
+                minimizations.push(summary);
+            }
+        }
+        minimizations.sort_by(|a, b| a.interaction_id.cmp(&b.interaction_id));
+
         let passes = results
             .iter()
             .filter(|result| result.outcome == TrialOutcome::Pass)
@@ -338,6 +368,7 @@ impl ExperimentRunner {
             failures,
             inconclusive,
             results,
+            minimizations,
         };
         persist_report(&self.workspace, &report)?;
         Ok(report)

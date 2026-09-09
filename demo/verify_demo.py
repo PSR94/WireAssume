@@ -3,6 +3,7 @@
 
 import glob
 import json
+import os
 import sys
 
 
@@ -28,6 +29,21 @@ def main() -> int:
         return fail("expected at least the missing-email and null-email experiments to fail")
     if report["passes"] < 1:
         return fail("expected at least one harmless mutation to pass")
+
+    minimizations = [item for item in report.get("minimizations", []) if item.get("established")]
+    if len(minimizations) != 1:
+        return fail(f"expected one established response minimization, found {len(minimizations)}")
+    minimized = minimizations[0]
+    if minimized.get("minimal_fields") != ["email"]:
+        return fail(
+            f"minimal successful response fields were {minimized.get('minimal_fields')!r}, "
+            "expected ['email']"
+        )
+    if minimized.get("tests_executed", 0) < 2:
+        return fail("response minimization did not execute enough real oracle trials")
+    artifact_ref = minimized.get("artifact_ref")
+    if not artifact_ref or not os.path.exists(os.path.join(".wireassume", artifact_ref)):
+        return fail("response minimization evidence artifact was not persisted")
 
     by_target = {item["target"]["path"]: item for item in lock["requirements"]}
     email = by_target.get("/email")
@@ -70,8 +86,8 @@ def main() -> int:
 
     print(
         "demo verification OK: OrbitDesk experimentally requires PeopleCRM email "
-        "presence + non-nullability while tolerating empty strings; OpenAPI marks "
-        "the dependency optional + nullable"
+        "presence + non-nullability while tolerating empty strings; async ddmin reduces "
+        "the successful response to {email}; OpenAPI marks the dependency optional + nullable"
     )
     return 0
 

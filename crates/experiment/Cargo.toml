@@ -7,6 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 wireassume-model = { path = "../model" }
+wireassume-delta-debugger = { path = "../delta-debugger" }
 wireassume-mutation-engine = { path = "../mutation-engine" }
 wireassume-oracles = { path = "../oracles" }
 wireassume-proxy = { path = "../proxy" }

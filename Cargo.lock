@@ -1978,6 +1978,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "wireassume-delta-debugger",
  "wireassume-model",
  "wireassume-mutation-engine",
  "wireassume-oracles",

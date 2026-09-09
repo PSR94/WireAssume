@@ -121,12 +121,7 @@ pub(crate) async fn minimize_response_fields(
                         result.summary,
                     ),
                 },
-                Err(error) => (
-                    TestOutcome::Unresolved,
-                    "unresolved",
-                    0,
-                    error.to_string(),
-                ),
+                Err(error) => (TestOutcome::Unresolved, "unresolved", 0, error.to_string()),
             };
             trials.lock().await.push(MinimizationTrial {
                 candidate_fields,
@@ -165,7 +160,8 @@ pub(crate) async fn minimize_response_fields(
             .map(|trial| (trial.candidate_fields.as_slice(), trial.outcome.as_str()))
             .collect(),
     };
-    let id = stable_id("min", &fingerprint).ok()?;
+    let id = stable_id("min", &fingerprint)
+        .expect("minimization fingerprint contains only serializable values");
     Some((
         ResponseMinimization {
             id,

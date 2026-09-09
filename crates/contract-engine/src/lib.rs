@@ -700,6 +700,7 @@ mod tests {
             failures,
             inconclusive: results.len() - passes - failures,
             results,
+            minimizations: vec![],
         }
     }
 
