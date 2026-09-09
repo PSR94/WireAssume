@@ -143,9 +143,10 @@ pub struct ToleranceCell {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContractAnalysis {
+    /// 100 means the consumer survived every weighted decisive mutation in this run.
     pub dependency_resilience_score: u8,
     pub decisive_trials: usize,
-    pub assumptions: usize,
+    pub failing_trials: usize,
     pub tolerance: Vec<ToleranceMap>,
 }
 
@@ -171,17 +172,23 @@ pub fn build_consumption_lock(
         let baseline = baselines
             .get(&result.interaction_id)
             .ok_or_else(|| ContractError::MissingBaseline(result.interaction_id.clone()))?;
-        update_requirement(&mut requirement_builders, result, baseline)?;
+        update_requirement(&mut requirement_builders, result, baseline);
+
         if result.outcome == TrialOutcome::Fail {
             if let Some((assumption_type, behavior, severity)) = assumption_from_failure(result) {
-                let key = format!("{assumption_type}\u{0}{}\u{0}{behavior}", result.target);
-                let builder = assumption_builders.entry(key).or_insert_with(|| AssumptionBuilder {
-                    assumption_type: assumption_type.to_string(),
-                    target: target_ref(&result.target),
-                    behavior: behavior.to_string(),
-                    severity: severity.to_string(),
-                    evidence_refs: BTreeSet::new(),
-                });
+                let key = format!(
+                    "{assumption_type}\u{0}{}\u{0}{behavior}",
+                    result.target
+                );
+                let builder = assumption_builders
+                    .entry(key)
+                    .or_insert_with(|| AssumptionBuilder {
+                        assumption_type: assumption_type.to_string(),
+                        target: target_ref(&result.target),
+                        behavior: behavior.to_string(),
+                        severity: severity.to_string(),
+                        evidence_refs: BTreeSet::new(),
+                    });
                 builder.evidence_refs.insert(result.evidence_id.clone());
             }
         }
@@ -236,6 +243,7 @@ pub fn analyze_contract(report: &ExperimentReport) -> ContractAnalysis {
     let mut by_target: BTreeMap<String, Vec<ToleranceCell>> = BTreeMap::new();
     let mut passed_weight = 0u64;
     let mut total_weight = 0u64;
+
     for result in &report.results {
         by_target
             .entry(result.target.clone())
@@ -245,6 +253,7 @@ pub fn analyze_contract(report: &ExperimentReport) -> ContractAnalysis {
                 outcome: result.outcome,
                 evidence_id: result.evidence_id.clone(),
             });
+
         if result.outcome != TrialOutcome::Inconclusive {
             let weight = mutation_weight(result.kind);
             total_weight += weight;
@@ -253,18 +262,25 @@ pub fn analyze_contract(report: &ExperimentReport) -> ContractAnalysis {
             }
         }
     }
+
     for cells in by_target.values_mut() {
-        cells.sort_by(|a, b| a.mutation.cmp(&b.mutation).then(a.evidence_id.cmp(&b.evidence_id)));
+        cells.sort_by(|a, b| {
+            a.mutation
+                .cmp(&b.mutation)
+                .then(a.evidence_id.cmp(&b.evidence_id))
+        });
     }
+
     let score = if total_weight == 0 {
         0
     } else {
         ((passed_weight * 100 + total_weight / 2) / total_weight).min(100) as u8
     };
+
     ContractAnalysis {
         dependency_resilience_score: score,
         decisive_trials: report.passes + report.failures,
-        assumptions: report.failures,
+        failing_trials: report.failures,
         tolerance: by_target
             .into_iter()
             .map(|(target, cells)| ToleranceMap { target, cells })
@@ -286,17 +302,35 @@ pub fn to_markdown(lock: &ConsumptionLock, analysis: &ContractAnalysis) -> Strin
     out.push_str(&format!("- Provider: **{}**\n", lock.provider.name));
     out.push_str(&format!("- Consumer: **{}**\n", lock.consumer.name));
     out.push_str(&format!("- Scenario: **{}**\n", lock.scenario.name));
-    out.push_str(&format!("- Endpoint: `{} {}`\n", lock.endpoint.method, lock.endpoint.path));
-    out.push_str(&format!("- Dependency Resilience Score: **{} / 100** (100 = survived all weighted decisive mutations)\n", analysis.dependency_resilience_score));
-    out.push_str(&format!("- Observed assumptions: **{}**\n\n", lock.assumptions.len()));
+    out.push_str(&format!(
+        "- Endpoint: `{} {}`\n",
+        lock.endpoint.method, lock.endpoint.path
+    ));
+    out.push_str(&format!(
+        "- Dependency Resilience Score: **{} / 100** (100 = survived all weighted decisive mutations)\n",
+        analysis.dependency_resilience_score
+    ));
+    out.push_str(&format!(
+        "- Observed assumptions: **{}**\n\n",
+        lock.assumptions.len()
+    ));
     out.push_str("## Assumptions\n\n");
+
     if lock.assumptions.is_empty() {
-        out.push_str("No failing counterfactual mutation produced an observed assumption in this run.\n");
+        out.push_str(
+            "No failing counterfactual mutation produced an observed assumption in this run.\n",
+        );
     } else {
         for assumption in &lock.assumptions {
-            out.push_str(&format!("### {} — `{}`\n\n", assumption.assumption_type, assumption.target.path));
+            out.push_str(&format!(
+                "### {} — `{}`\n\n",
+                assumption.assumption_type, assumption.target.path
+            ));
             out.push_str(&format!("{}\n\n", assumption.behavior));
-            out.push_str(&format!("Severity: **{}** · Confidence: **{}**\n\n", assumption.severity, assumption.confidence));
+            out.push_str(&format!(
+                "Severity: **{}** · Confidence: **{}**\n\n",
+                assumption.severity, assumption.confidence
+            ));
         }
     }
     out
@@ -315,8 +349,17 @@ struct RequirementBuilder {
 
 impl RequirementBuilder {
     fn finish(self) -> Result<Requirement, serde_json::Error> {
-        let target = self.target.expect("requirement builder always has target");
-        let fingerprint = (&target.kind, &target.path, &self.presence, &self.types, &self.nullable, &self.accepted_empty);
+        let target = self
+            .target
+            .expect("requirement builder is created only with a target");
+        let fingerprint = (
+            &target.kind,
+            &target.path,
+            &self.presence,
+            &self.types,
+            &self.nullable,
+            &self.accepted_empty,
+        );
         Ok(Requirement {
             id: stable_id("req", &fingerprint)?,
             target,
@@ -325,7 +368,11 @@ impl RequirementBuilder {
             nullable: self.nullable,
             accepted_empty: self.accepted_empty,
             confidence: "observed".into(),
-            severity: if self.severity.is_empty() { "low".into() } else { self.severity },
+            severity: if self.severity.is_empty() {
+                "low".into()
+            } else {
+                self.severity
+            },
             evidence_refs: self.evidence_refs.into_iter().collect(),
         })
     }
@@ -341,7 +388,11 @@ struct AssumptionBuilder {
 
 impl AssumptionBuilder {
     fn finish(self) -> Result<Assumption, serde_json::Error> {
-        let fingerprint = (&self.assumption_type, &self.target.path, &self.behavior);
+        let fingerprint = (
+            &self.assumption_type,
+            &self.target.path,
+            &self.behavior,
+        );
         Ok(Assumption {
             id: stable_id("asm", &fingerprint)?,
             assumption_type: self.assumption_type,
@@ -359,14 +410,27 @@ fn update_requirement(
     builders: &mut BTreeMap<String, RequirementBuilder>,
     result: &TrialResult,
     baseline: &ResponseRecord,
-) -> Result<(), serde_json::Error> {
-    if !result.target.starts_with("response.body") {
-        return Ok(());
+) {
+    if result.outcome == TrialOutcome::Inconclusive || !result.target.starts_with("response.body") {
+        return;
     }
+
+    let failed = result.outcome == TrialOutcome::Fail;
+    let relevant = matches!(
+        result.kind,
+        MutationKind::RemoveField
+            | MutationKind::NullField
+            | MutationKind::EmptyString
+            | MutationKind::WrongPrimitiveType
+    );
+    if !relevant {
+        return;
+    }
+
     let builder = builders.entry(result.target.clone()).or_default();
     builder.target = Some(target_ref(&result.target));
     builder.evidence_refs.insert(result.evidence_id.clone());
-    let failed = result.outcome == TrialOutcome::Fail;
+
     match result.kind {
         MutationKind::RemoveField => {
             builder.presence = Some(if failed { "required" } else { "optional" }.into());
@@ -380,18 +444,22 @@ fn update_requirement(
         }
         _ => {}
     }
+
     if failed {
         builder.severity = max_severity(&builder.severity, severity_for(result.kind)).to_string();
     }
-    Ok(())
 }
 
-fn baseline_type_at_target<'a>(baseline: &'a ResponseRecord, target: &str) -> Option<&'static str> {
+fn baseline_type_at_target(baseline: &ResponseRecord, target: &str) -> Option<&'static str> {
     let pointer = target.strip_prefix("response.body")?;
     let Body::Json(value) = &baseline.body else {
         return None;
     };
-    let value = if pointer.is_empty() { value } else { value.pointer(pointer)? };
+    let value = if pointer.is_empty() {
+        value
+    } else {
+        value.pointer(pointer)?
+    };
     Some(value_type(value))
 }
 
@@ -419,7 +487,7 @@ fn evidence_ref(result: &TrialResult) -> EvidenceRef {
         }
         .into(),
         failure_summary: (result.outcome == TrialOutcome::Fail).then(|| result.summary.clone()),
-        artifact_refs: Vec::new(),
+        artifact_refs: result.artifact_refs.clone(),
     }
 }
 
@@ -443,7 +511,9 @@ fn target_ref(target: &str) -> TargetRef {
     }
 }
 
-fn assumption_from_failure(result: &TrialResult) -> Option<(&'static str, &'static str, &'static str)> {
+fn assumption_from_failure(
+    result: &TrialResult,
+) -> Option<(&'static str, &'static str, &'static str)> {
     use MutationKind::*;
     Some(match result.kind {
         RemoveField => ("presence", "value must be present", "high"),
@@ -453,31 +523,67 @@ fn assumption_from_failure(result: &TrialResult) -> Option<(&'static str, &'stat
         NumericZero | NegativeNumber | VeryLargeNumber | FloatInsteadOfInteger => {
             ("numeric-range", "numeric edge case is not tolerated", "medium")
         }
-        EmptyString | WhitespaceString | UnicodeString | LongString => {
-            ("string-format", "string edge case is not tolerated", "medium")
+        EmptyString | WhitespaceString | UnicodeString | LongString => (
+            "string-format",
+            "string edge case is not tolerated",
+            "medium",
+        ),
+        ReverseArray | ShuffleArray => {
+            ("array-order", "array ordering affects the workflow", "high")
         }
-        ReverseArray | ShuffleArray => ("array-order", "array ordering affects the workflow", "high"),
-        EmptyArray | RemoveFirstArrayItem | RemoveLastArrayItem | OneArrayItem | RepeatedArrayItems => {
-            ("cardinality", "array cardinality/content change affects the workflow", "medium")
-        }
-        DuplicateArrayItem | DuplicateValue => {
-            ("duplicate-handling", "duplicate value is not tolerated", "medium")
-        }
-        AdditionalUnknownProperty => {
-            ("unknown-field-tolerance", "additional unknown field is not tolerated", "medium")
-        }
+        EmptyArray | RemoveFirstArrayItem | RemoveLastArrayItem | OneArrayItem
+        | RepeatedArrayItems => (
+            "cardinality",
+            "array cardinality/content change affects the workflow",
+            "medium",
+        ),
+        DuplicateArrayItem | DuplicateValue => (
+            "duplicate-handling",
+            "duplicate value is not tolerated",
+            "medium",
+        ),
+        AdditionalUnknownProperty => (
+            "unknown-field-tolerance",
+            "additional unknown field is not tolerated",
+            "medium",
+        ),
         RemoveHeader => ("header", "response header is required by the workflow", "high"),
-        ChangeContentType => ("content-type", "Content-Type semantics affect the workflow", "high"),
-        StatusCode => ("status-code", "HTTP status variation affects the workflow", "high"),
-        Redirect => ("redirect-behavior", "redirect response is not tolerated", "medium"),
-        ErrorCodeMissing | ErrorMessageMissing | EmptyErrorObject | NonJsonErrorBody | HtmlErrorPage | UnknownErrorCode => {
-            ("error-shape", "error response shape affects the workflow", "high")
-        }
-        PaginationMissingCursor | PaginationNullCursor | PaginationMissingMetadata => {
-            ("pagination", "pagination metadata behavior affects the workflow", "high")
-        }
-        DelayResponse => ("timing", "increased response latency affects the workflow", "medium"),
-        EmptyResponse | MalformedBody => ("error-shape", "empty or malformed response is not tolerated", "medium"),
+        ChangeContentType => (
+            "content-type",
+            "Content-Type semantics affect the workflow",
+            "high",
+        ),
+        StatusCode => (
+            "status-code",
+            "HTTP status variation affects the workflow",
+            "high",
+        ),
+        Redirect => (
+            "redirect-behavior",
+            "redirect response is not tolerated",
+            "medium",
+        ),
+        ErrorCodeMissing | ErrorMessageMissing | EmptyErrorObject | NonJsonErrorBody
+        | HtmlErrorPage | UnknownErrorCode => (
+            "error-shape",
+            "error response shape affects the workflow",
+            "high",
+        ),
+        PaginationMissingCursor | PaginationNullCursor | PaginationMissingMetadata => (
+            "pagination",
+            "pagination metadata behavior affects the workflow",
+            "high",
+        ),
+        DelayResponse => (
+            "timing",
+            "increased response latency affects the workflow",
+            "medium",
+        ),
+        EmptyResponse | MalformedBody => (
+            "error-shape",
+            "empty or malformed response is not tolerated",
+            "medium",
+        ),
         EmptyObject => ("presence", "object contents are required", "medium"),
         AdditionalHeader => return None,
     })
@@ -493,7 +599,9 @@ fn assumption_from_kind(kind: MutationKind) -> Option<(&'static str, &'static st
         RemoveField | NullField | WrongPrimitiveType | UnknownEnum | ReverseArray | ShuffleArray
         | RemoveHeader | ChangeContentType | StatusCode | ErrorCodeMissing | ErrorMessageMissing
         | EmptyErrorObject | NonJsonErrorBody | HtmlErrorPage | UnknownErrorCode
-        | PaginationMissingCursor | PaginationNullCursor | PaginationMissingMetadata => ("structural", "high"),
+        | PaginationMissingCursor | PaginationNullCursor | PaginationMissingMetadata => {
+            ("structural", "high")
+        }
         NumericZero | NegativeNumber | VeryLargeNumber | FloatInsteadOfInteger | EmptyString
         | WhitespaceString | UnicodeString | LongString | EmptyArray | EmptyObject
         | DuplicateArrayItem | DuplicateValue | RemoveFirstArrayItem | RemoveLastArrayItem
@@ -537,8 +645,14 @@ mod tests {
     use wireassume_model::Header;
 
     fn report(results: Vec<TrialResult>) -> ExperimentReport {
-        let passes = results.iter().filter(|result| result.outcome == TrialOutcome::Pass).count();
-        let failures = results.iter().filter(|result| result.outcome == TrialOutcome::Fail).count();
+        let passes = results
+            .iter()
+            .filter(|result| result.outcome == TrialOutcome::Pass)
+            .count();
+        let failures = results
+            .iter()
+            .filter(|result| result.outcome == TrialOutcome::Fail)
+            .count();
         ExperimentReport {
             run_id: "run_test".into(),
             generated_at: "2026-09-09T00:00:00Z".into(),
@@ -546,7 +660,11 @@ mod tests {
             source_revision: Some("abc123".into()),
             seed: 42,
             budget: 10,
-            baseline: BaselineResult { duration_ms: 1, summary: "pass".into() },
+            baseline: BaselineResult {
+                duration_ms: 1,
+                summary: "pass".into(),
+                artifact_refs: vec!["runs/run_test/baseline-oracle.json".into()],
+            },
             planned_mutations: results.len(),
             executed_mutations: results.len(),
             passes,
@@ -556,7 +674,12 @@ mod tests {
         }
     }
 
-    fn trial(kind: MutationKind, outcome: TrialOutcome, target: &str, id: &str) -> TrialResult {
+    fn trial(
+        kind: MutationKind,
+        outcome: TrialOutcome,
+        target: &str,
+        id: &str,
+    ) -> TrialResult {
         TrialResult {
             evidence_id: format!("ev_{id}"),
             interaction_id: "int_1".into(),
@@ -566,23 +689,50 @@ mod tests {
             description: "test".into(),
             outcome,
             duration_ms: 1,
-            summary: if outcome == TrialOutcome::Fail { "consumer failed" } else { "consumer passed" }.into(),
+            summary: if outcome == TrialOutcome::Fail {
+                "consumer failed"
+            } else {
+                "consumer passed"
+            }
+            .into(),
+            artifact_refs: vec![format!("evidence/ev_{id}/oracle.json")],
         }
     }
 
     #[test]
     fn failing_missing_and_null_trials_infer_observed_requirement() {
         let report = report(vec![
-            trial(MutationKind::RemoveField, TrialOutcome::Fail, "response.body/email", "missing"),
-            trial(MutationKind::NullField, TrialOutcome::Fail, "response.body/email", "null"),
-            trial(MutationKind::EmptyString, TrialOutcome::Pass, "response.body/email", "empty"),
+            trial(
+                MutationKind::RemoveField,
+                TrialOutcome::Fail,
+                "response.body/email",
+                "missing",
+            ),
+            trial(
+                MutationKind::NullField,
+                TrialOutcome::Fail,
+                "response.body/email",
+                "null",
+            ),
+            trial(
+                MutationKind::EmptyString,
+                TrialOutcome::Pass,
+                "response.body/email",
+                "empty",
+            ),
         ]);
         let mut baselines = BTreeMap::new();
-        baselines.insert("int_1".into(), ResponseRecord {
-            status: 200,
-            headers: vec![Header { name: "content-type".into(), value: "application/json".into() }],
-            body: Body::Json(serde_json::json!({"email": "alice@example.com"})),
-        });
+        baselines.insert(
+            "int_1".into(),
+            ResponseRecord {
+                status: 200,
+                headers: vec![Header {
+                    name: "content-type".into(),
+                    value: "application/json".into(),
+                }],
+                body: Body::Json(serde_json::json!({"email": "alice@example.com"})),
+            },
+        );
         let context = ContractContext {
             tool_version: "0.1.0".into(),
             generated_at: "2026-09-09T00:00:00Z".into(),
@@ -599,18 +749,70 @@ mod tests {
             source_revision: "abc123".into(),
         };
         let lock = build_consumption_lock(&report, &baselines, &context).unwrap();
-        let requirement = lock.requirements.iter().find(|requirement| requirement.target.path == "/email").unwrap();
+        let requirement = lock
+            .requirements
+            .iter()
+            .find(|requirement| requirement.target.path == "/email")
+            .unwrap();
         assert_eq!(requirement.presence.as_deref(), Some("required"));
         assert_eq!(requirement.nullable, Some(false));
         assert_eq!(requirement.accepted_empty, Some(true));
         assert_eq!(lock.assumptions.len(), 2);
+        assert!(!lock.evidence[0].artifact_refs.is_empty());
+    }
+
+    #[test]
+    fn inconclusive_trials_do_not_become_tolerance_claims() {
+        let report = report(vec![trial(
+            MutationKind::RemoveField,
+            TrialOutcome::Inconclusive,
+            "response.body/email",
+            "infra",
+        )]);
+        let mut baselines = BTreeMap::new();
+        baselines.insert(
+            "int_1".into(),
+            ResponseRecord {
+                status: 200,
+                headers: vec![],
+                body: Body::Json(serde_json::json!({"email": "a@example.com"})),
+            },
+        );
+        let context = ContractContext {
+            tool_version: "0.1.0".into(),
+            generated_at: "2026-09-09T00:00:00Z".into(),
+            provider_id: "p".into(),
+            provider_name: "P".into(),
+            consumer_id: "c".into(),
+            consumer_name: "C".into(),
+            scenario_id: "s".into(),
+            scenario_name: "S".into(),
+            oracle: "command".into(),
+            method: "GET".into(),
+            path: "/x".into(),
+            source_revision_kind: "workspace".into(),
+            source_revision: "working-tree".into(),
+        };
+        let lock = build_consumption_lock(&report, &baselines, &context).unwrap();
+        assert!(lock.requirements.is_empty());
+        assert!(lock.assumptions.is_empty());
     }
 
     #[test]
     fn resilience_score_is_weighted_survival_not_an_llm_judgment() {
         let report = report(vec![
-            trial(MutationKind::RemoveField, TrialOutcome::Fail, "response.body/email", "a"),
-            trial(MutationKind::UnicodeString, TrialOutcome::Pass, "response.body/email", "b"),
+            trial(
+                MutationKind::RemoveField,
+                TrialOutcome::Fail,
+                "response.body/email",
+                "a",
+            ),
+            trial(
+                MutationKind::UnicodeString,
+                TrialOutcome::Pass,
+                "response.body/email",
+                "b",
+            ),
         ]);
         let analysis = analyze_contract(&report);
         assert_eq!(analysis.decisive_trials, 2);
