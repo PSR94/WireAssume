@@ -5,6 +5,8 @@ members = [
   "crates/mutation-engine",
   "crates/delta-debugger",
   "crates/oracles",
+  "crates/replay",
+  "crates/proxy",
 ]
 resolver = "2"
 
@@ -30,3 +32,7 @@ rand_chacha = "0.3"
 async-trait = "0.1"
 tokio = { version = "1.41", features = ["macros", "rt-multi-thread", "process", "time", "net", "signal"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+axum = { version = "0.7", features = ["http1", "http2"] }
+bytes = "1.8"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
