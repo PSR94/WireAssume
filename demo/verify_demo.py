@@ -22,6 +22,14 @@ def main() -> int:
         report = json.load(handle)
     with open(locks[0], encoding="utf-8") as handle:
         lock = json.load(handle)
+    html_report = os.path.join(os.path.dirname(reports[0]), "report.html")
+    if not os.path.exists(html_report):
+        return fail("static HTML report was not generated")
+    with open(html_report, encoding="utf-8") as handle:
+        html = handle.read()
+    for expected in ("WireAssume Consumer Contract Analysis", "UNDOCUMENTED", "CONTRADICTED"):
+        if expected not in html:
+            return fail(f"static HTML report is missing {expected!r}")
 
     if report["baseline"]["summary"].find("passed") < 0:
         return fail("baseline oracle did not pass")

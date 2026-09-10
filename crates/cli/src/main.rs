@@ -14,8 +14,8 @@ use wireassume_config::{
     CommandOracleConfig, HttpOracleConfig, OracleConfig, PlaywrightOracleConfig, WireAssumeConfig,
 };
 use wireassume_contract_engine::{
-    analyze_contract, apply_openapi_comparison, build_consumption_lock, to_json, to_markdown,
-    to_yaml, ContractContext,
+    analyze_contract, apply_openapi_comparison, build_consumption_lock, to_html, to_json,
+    to_markdown, to_yaml, ContractContext,
 };
 use wireassume_experiment::{ExperimentConfig, ExperimentRunner};
 use wireassume_model::CorpusStore;
@@ -307,9 +307,11 @@ async fn analyze(
     let yaml = to_yaml(&lock)?;
     let json = to_json(&lock)?;
     let markdown = to_markdown(&lock, &analysis);
+    let html = to_html(&lock, &analysis);
     fs::write(run_directory.join("consumption.lock.yml"), &yaml)?;
     fs::write(run_directory.join("consumption.lock.json"), &json)?;
     fs::write(run_directory.join("report.md"), &markdown)?;
+    fs::write(run_directory.join("report.html"), &html)?;
     fs::write("consumption.lock.yml", &yaml)?;
 
     println!("\nWireAssume Consumer Contract Analysis\n");
@@ -364,7 +366,10 @@ async fn analyze(
     println!("\nRun: {}", report.run_id);
     println!("Evidence: {}/evidence/", workspace.display());
     println!("Contract: consumption.lock.yml");
-    println!("Report: {}/report.md", run_directory.display());
+    println!(
+        "Reports: {}/report.md and report.html",
+        run_directory.display()
+    );
     Ok(())
 }
 

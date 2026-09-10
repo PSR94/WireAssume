@@ -78,7 +78,9 @@ pub fn to_html(lock: &ConsumptionLock, analysis: &ContractAnalysis) -> String {
         ));
     }
     if tolerance_rows.is_empty() {
-        tolerance_rows.push_str("<tr><td colspan=\"5\" class=\"muted\">No decisive tolerance data.</td></tr>");
+        tolerance_rows.push_str(
+            "<tr><td colspan=\"5\" class=\"muted\">No decisive tolerance data.</td></tr>",
+        );
     }
 
     format!(

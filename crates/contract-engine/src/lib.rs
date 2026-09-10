@@ -8,7 +8,9 @@ use wireassume_experiment::{ExperimentReport, TrialOutcome, TrialResult};
 use wireassume_model::{stable_id, Body, ResponseRecord};
 use wireassume_mutation_engine::MutationKind;
 
+mod html;
 mod openapi;
+pub use html::to_html;
 pub use openapi::{apply_openapi_comparison, OpenApiComparison, ProviderMismatch};
 
 pub const CONSUMPTION_SCHEMA_V1: &str = "wireassume.consumption/v1";
