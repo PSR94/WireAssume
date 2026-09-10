@@ -21,6 +21,9 @@ jobs:
       - name: Apply regression integration patch
         run: python3 scripts/integrate_regression.py
 
+      - name: Refresh lockfile
+        run: cargo check --workspace
+
       - name: Format
         run: cargo fmt --all
 
@@ -99,7 +102,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/contract-engine/src/lib.rs crates/contract-engine/src/diff.rs crates/contract-engine/src/pact.rs crates/cli/Cargo.toml crates/cli/src/main.rs action.yml README.md CHANGELOG.md docs/github-action.md docs/project-status.md
+          git add Cargo.lock crates/contract-engine/src/lib.rs crates/contract-engine/src/diff.rs crates/contract-engine/src/pact.rs crates/cli/Cargo.toml crates/cli/src/main.rs action.yml README.md CHANGELOG.md docs/github-action.md docs/project-status.md
           if git diff --cached --quiet; then
             echo "No regression integration changes to commit."
             exit 0
