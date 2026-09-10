@@ -1,10 +1,8 @@
+<p align="center">
+  <img src="docs/assets/readme/wireassume-banner.svg" alt="WireAssume — discover what your application actually assumes about the APIs it depends on" width="100%" />
+</p>
+
 <div align="center">
-
-# WireAssume
-
-**Discover what your application actually assumes about the APIs it depends on.**
-
-An API schema tells you what a provider *may* send. WireAssume runs controlled counterfactual experiments to discover what your consumer *actually needs*.
 
 [![Rust core](https://github.com/PSR94/WireAssume/actions/workflows/rust.yml/badge.svg)](https://github.com/PSR94/WireAssume/actions/workflows/rust.yml)
 [![OrbitDesk demo](https://github.com/PSR94/WireAssume/actions/workflows/demo.yml/badge.svg)](https://github.com/PSR94/WireAssume/actions/workflows/demo.yml)
@@ -62,6 +60,16 @@ cargo test --workspace --locked
 ```
 
 The project deliberately keeps the core workflow and end-to-end demo workflow separate: a green unit/workspace build alone is not accepted as proof that the product path works.
+
+---
+
+# Analysis flow
+
+<p align="center">
+  <img src="docs/assets/readme/wireassume-analysis-flow.svg" alt="WireAssume analysis flow from capture through evidence-backed inference" width="100%" />
+</p>
+
+The flow is deliberately ordered: WireAssume verifies the unmodified baseline first, changes one provider behavior at a time, asks the real consumer oracle what happened, and only then turns decisive failure evidence into a requirement. `INCONCLUSIVE` never becomes a dependency, and OpenAPI comparison happens after behavioral inference rather than acting as ground truth.
 
 ---
 
@@ -708,6 +716,14 @@ See [`docs/github-action.md`](docs/github-action.md) for Action inputs, outputs,
 ---
 
 # Architecture
+
+<p align="center">
+  <img src="docs/assets/readme/wireassume-architecture.svg" alt="WireAssume architecture showing interfaces, provider and consumer systems, deterministic core engine, and generated outputs" width="100%" />
+</p>
+
+The architecture keeps evidence capture, experiment execution, inference, and provider-spec comparison separate. That separation is intentional: provider schemas and optional AI assistance can explain or compare findings, but neither is allowed to manufacture the behavioral ground truth.
+
+## Runtime data path
 
 ```text
 consumer workflow
