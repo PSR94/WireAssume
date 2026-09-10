@@ -17,11 +17,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reconstruct generated banner
+      - name: Reconstruct verified generated banner
         shell: bash
         run: |
           set -euo pipefail
-          cat .wireassume-banner-staging/part*.b64 | tr -d '\n' | base64 -d > docs/assets/readme/wireassume-banner.webp
+          cat .wireassume-banner-exact/p*.b64 > /tmp/wireassume-banner.b64
+          test "$(wc -c < /tmp/wireassume-banner.b64)" -eq 24856
+          base64 --decode /tmp/wireassume-banner.b64 > docs/assets/readme/wireassume-banner.webp
           echo "4b1e7051b7beb4ea2564429eac5001ff7314f45dcd546f5a0582475889fc783b  docs/assets/readme/wireassume-banner.webp" | sha256sum -c -
           test -s docs/assets/readme/wireassume-banner.webp
           file docs/assets/readme/wireassume-banner.webp | grep -q 'Web/P image'
@@ -48,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -f docs/assets/readme/wireassume-banner.svg
-          rm -rf .wireassume-banner-staging
+          rm -rf .wireassume-banner-staging .wireassume-banner-exact
           rm -f .github/workflows/banner-refresh.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
