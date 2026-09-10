@@ -13,17 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
+
+      - name: Analyze OrbitDesk with WireAssume action
+        id: wireassume
+        uses: ./
         with:
-          toolchain: 1.98.0
-      - uses: Swatinem/rust-cache@v2
-      - name: Build WireAssume
-        run: cargo build --workspace --locked
-      - name: Analyze OrbitDesk customer profile
-        working-directory: demo
+          working-directory: demo
+          config: wireassume.yml
+          scenario: customer-profile
+          source-revision: demo-v1
+
+      - name: Verify action outputs
+        env:
+          REPORT_DIRECTORY: ${{ steps.wireassume.outputs.report-directory }}
+          LOCKFILE: ${{ steps.wireassume.outputs.lockfile }}
+          MARKDOWN_REPORT: ${{ steps.wireassume.outputs.markdown-report }}
+          HTML_REPORT: ${{ steps.wireassume.outputs.html-report }}
         run: |
-          rm -rf .wireassume/runs .wireassume/evidence consumption.lock.yml
-          ../target/debug/wireassume --config wireassume.yml analyze --scenario customer-profile --source-revision demo-v1
+          test -d "$REPORT_DIRECTORY"
+          test -f "$LOCKFILE"
+          test -f "$MARKDOWN_REPORT"
+          test -f "$HTML_REPORT"
+
       - name: Verify experimentally inferred contract
         working-directory: demo
         run: python3 verify_demo.py
