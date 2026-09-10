@@ -1,0 +1,62 @@
+name: Integrate evidence redaction
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Apply redaction integration patch
+        run: python3 scripts/integrate_redaction.py
+
+      - name: Refresh lockfile
+        run: cargo check --workspace
+
+      - name: Format
+        run: cargo fmt --all
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+      - name: Prove regex and oracle evidence redaction end to end
+        id: wireassume
+        uses: ./
+        with:
+          working-directory: demo
+          config: wireassume.yml
+          scenario: customer-profile
+          source-revision: redaction-e2e
+
+      - name: Verify demo and redaction evidence
+        working-directory: demo
+        run: python3 verify_demo.py
+
+      - name: Commit validated redaction integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock crates/model/Cargo.toml crates/model/src/redaction.rs crates/config/src/lib.rs crates/experiment/src/lib.rs crates/experiment/src/minimize.rs crates/cli/src/main.rs demo/orbitdesk.py demo/wireassume.yml demo/verify_demo.py README.md CHANGELOG.md docs/configuration.md docs/project-status.md
+          if git diff --cached --quiet; then
+            echo "No redaction integration changes to commit."
+            exit 0
+          fi
+          git commit -m "feat(security): redact configured secrets from oracle evidence"
+          git push
