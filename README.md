@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/readme/wireassume-banner.svg" alt="WireAssume — discover what your application actually assumes about the APIs it depends on" width="100%" />
+  <img src="docs/assets/readme/wireassume-banner.webp" alt="WireAssume — discover what your application actually assumes about the APIs it depends on" width="100%" />
 </p>
 
 <div align="center">
