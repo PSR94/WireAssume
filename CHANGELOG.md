@@ -17,7 +17,8 @@ All notable changes to WireAssume are documented here. The project is currently 
 - Initial OpenAPI 3.x comparison for experimentally observed response-body presence/nullability/type dependencies.
 - YAML, JSON, Markdown, and self-contained HTML analysis artifacts.
 - Real OrbitDesk × PeopleCRM end-to-end demo with generated-result verification in CI.
-- Reusable composite GitHub Action for running `wireassume analyze` from consumer repositories.
+- Reusable composite GitHub Action for running `wireassume analyze` from consumer repositories, with optional breaking contract regression enforcement.
+- Deterministic `diff`/`history` CLI surfaces plus Pact v3 compatibility export.
 - Reproducible CI with committed `Cargo.lock`, formatting checks, strict Clippy, and workspace tests on Rust 1.98.
 
 ### Security

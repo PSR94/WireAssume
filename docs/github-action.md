@@ -49,6 +49,8 @@ jobs:
 | `working-directory` | no | `.` | Consumer/workspace directory inside the caller repository. |
 | `source-revision` | no | empty | Contract revision; an empty value uses `GITHUB_SHA`, then WireAssume's normal fallback. |
 | `toolchain` | no | `1.98.0` | Rust toolchain used to build the action's WireAssume binary. |
+| `baseline-lock` | no | empty | Previous lock path, relative to `working-directory`, for regression comparison. |
+| `fail-on-breaking` | no | `true` | Fail when the generated contract adds assumptions or becomes structurally stricter. |
 
 ## Outputs
 
@@ -59,6 +61,7 @@ jobs:
 | `lockfile` | Absolute path to root `consumption.lock.yml`. |
 | `markdown-report` | Absolute path to the run Markdown report. |
 | `html-report` | Absolute path to the self-contained run HTML report. |
+| `diff-report` | Absolute path to JSON contract diff when `baseline-lock` is provided; empty otherwise. |
 
 The action fails if analysis fails, if WireAssume does not emit a run ID, or if the expected lock/Markdown/HTML artifacts are missing.
 

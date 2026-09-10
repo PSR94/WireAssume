@@ -115,6 +115,9 @@ wireassume record --scenario <name>
 wireassume replay [--listen <host:port>]
 wireassume mutate <response.json> [--scenario <name>] [--budget N] [--seed N]
 wireassume analyze --scenario <name> [--source-revision <revision>]
+wireassume diff <base.lock> <head.lock> [--json] [--fail-on-breaking]
+wireassume export-pact <consumption.lock> [--output pact.json]
+wireassume history [--workspace .wireassume] [--assumption <id>] [--json]
 ```
 
 Typical lifecycle:
@@ -213,7 +216,7 @@ jobs:
           echo "Report:   $HTML_REPORT"
 ```
 
-The action builds the locked WireAssume workspace with Rust 1.98 by default, runs `analyze`, and exposes `run-id`, `report-directory`, `lockfile`, `markdown-report`, and `html-report` outputs. The repository's own OrbitDesk workflow uses `uses: ./`, so the action path is exercised end-to-end on every push and pull request.
+The action builds the locked WireAssume workspace with Rust 1.98 by default, runs `analyze`, and exposes `run-id`, `report-directory`, `lockfile`, `markdown-report`, and `html-report` outputs. Supply `baseline-lock` to run a deterministic contract diff; `fail-on-breaking` defaults to `true` so newly introduced consumer assumptions or stricter requirements fail the job. The repository's own OrbitDesk workflow uses `uses: ./`, so the action path is exercised end-to-end on every push and pull request.
 
 ## What can be tested
 

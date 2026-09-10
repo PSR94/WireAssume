@@ -15,7 +15,11 @@ pub fn to_pact_json(lock: &ConsumptionLock) -> Result<String, serde_json::Error>
         if requirement.target.kind != "response-body" {
             continue;
         }
-        insert_placeholder(&mut body, &requirement.target.path, placeholder(requirement));
+        insert_placeholder(
+            &mut body,
+            &requirement.target.path,
+            placeholder(requirement),
+        );
         let path = pact_path(&requirement.target.path);
         if let Some(matcher) = matcher(requirement) {
             matching_rules.insert(path, matcher);

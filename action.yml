@@ -28,6 +28,14 @@ inputs:
     description: Rust toolchain used to build the WireAssume action binary.
     required: false
     default: 1.98.0
+  baseline-lock:
+    description: Optional baseline consumption.lock path relative to working-directory.
+    required: false
+    default: ""
+  fail-on-breaking:
+    description: Fail when the generated contract is stricter than baseline-lock.
+    required: false
+    default: "true"
 
 outputs:
   run-id:
@@ -45,6 +53,9 @@ outputs:
   html-report:
     description: Absolute path to the generated self-contained HTML report.
     value: ${{ steps.analyze.outputs.html-report }}
+  diff-report:
+    description: Absolute path to generated contract diff JSON when baseline-lock is supplied.
+    value: ${{ steps.analyze.outputs.diff-report }}
 
 runs:
   using: composite
@@ -66,6 +77,8 @@ runs:
         WA_SCENARIO: ${{ inputs.scenario }}
         WA_WORKDIR: ${{ inputs.working-directory }}
         WA_SOURCE_REVISION: ${{ inputs.source-revision }}
+        WA_BASELINE_LOCK: ${{ inputs.baseline-lock }}
+        WA_FAIL_ON_BREAKING: ${{ inputs.fail-on-breaking }}
       run: |
         set -euo pipefail
 
@@ -103,10 +116,33 @@ runs:
           fi
         done
 
+        diff_report=""
+        if [[ -n "$WA_BASELINE_LOCK" ]]; then
+          baseline="$workdir/$WA_BASELINE_LOCK"
+          if [[ ! -f "$baseline" ]]; then
+            echo "WireAssume baseline-lock does not exist: $baseline" >&2
+            exit 5
+          fi
+          diff_report="$report_directory/diff.json"
+          diff_args=(diff "$baseline" "$report_directory/consumption.lock.json" --json)
+          if [[ "$WA_FAIL_ON_BREAKING" == "true" ]]; then
+            diff_args+=(--fail-on-breaking)
+          fi
+          set +e
+          "$binary" "${diff_args[@]}" > "$diff_report"
+          diff_status=$?
+          set -e
+          cat "$diff_report"
+          if [[ $diff_status -ne 0 ]]; then
+            exit $diff_status
+          fi
+        fi
+
         {
           echo "run-id=$run_id"
           echo "report-directory=$report_directory"
           echo "lockfile=$lockfile"
           echo "markdown-report=$markdown_report"
           echo "html-report=$html_report"
+          echo "diff-report=$diff_report"
         } >> "$GITHUB_OUTPUT"

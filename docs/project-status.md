@@ -25,7 +25,9 @@ WireAssume is under active construction toward v0.1.0. This matrix distinguishes
 | `wireassume analyze` | Implemented vertical slice | Runs controlled mutations, real consumer oracles, async response-field minimization, deterministic inference, configured OpenAPI guarantee comparison, and lock/report output. |
 | OpenAPI comparison | Implemented initial slice | Compares experimentally observed response-body assumptions with configured OpenAPI 3.x required/nullable/type guarantees; unsupported shapes remain `unknown`. |
 | OrbitDesk + PeopleCRM demo | Implemented vertical slice | CI executes OrbitDesk against controlled PeopleCRM replay and verifies email presence/non-null assumptions, `{email}` ddmin result, OpenAPI mismatches, and static HTML output. |
-| Reusable GitHub Action | Implemented initial slice | Root `action.yml` builds the locked CLI, runs `analyze`, validates generated artifacts, and exposes run/lock/report outputs. The OrbitDesk CI workflow self-tests `uses: ./`. |
+| Reusable GitHub Action | Implemented | Root `action.yml` builds the locked CLI, runs `analyze`, validates artifacts, exposes run/lock/report outputs, and can fail on breaking differences from a supplied baseline lock. OrbitDesk CI self-tests `uses: ./`. |
+| Contract diff/history | Implemented initial slice | `wireassume diff` deterministically classifies added/removed assumptions and stricter requirements; `history` lists run-scoped revision/assumption history and can identify the first recorded revision containing an assumption. |
+| Pact export | Implemented compatibility bridge | `wireassume export-pact` renders experimentally observed structural response requirements as Pact v3 matchers while retaining non-Pact behavioral assumptions in WireAssume metadata. |
 | Backend API | Roadmap | FastAPI/PostgreSQL service remains broader product work outside the validated CLI release surface. |
 | Dashboard | Roadmap | Interactive Next.js/TypeScript dashboard remains broader product work outside the validated CLI release surface. |
 | Screenshots | Not available | No product screenshots are committed; any future screenshots must come from a running dashboard. |

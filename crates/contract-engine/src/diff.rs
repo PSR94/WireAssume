@@ -127,8 +127,8 @@ pub fn diff_contracts(base: &ConsumptionLock, head: &ConsumptionLock) -> Contrac
             .then(a.assumption_id.cmp(&b.assumption_id))
     });
 
-    let breaking = !added_assumptions.is_empty()
-        || requirement_changes.iter().any(|change| change.breaking);
+    let breaking =
+        !added_assumptions.is_empty() || requirement_changes.iter().any(|change| change.breaking);
 
     ContractDiff {
         base_revision: base.metadata.source_revision.value.clone(),
@@ -196,7 +196,10 @@ fn classify_requirement_change(
                 stricter.push("accepted/observed type requirement changed");
             }
             if stricter.is_empty() {
-                (false, "consumer requirement changed without becoming stricter".into())
+                (
+                    false,
+                    "consumer requirement changed without becoming stricter".into(),
+                )
             } else {
                 (true, stricter.join("; "))
             }

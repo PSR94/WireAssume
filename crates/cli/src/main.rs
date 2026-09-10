@@ -14,8 +14,8 @@ use wireassume_config::{
     CommandOracleConfig, HttpOracleConfig, OracleConfig, PlaywrightOracleConfig, WireAssumeConfig,
 };
 use wireassume_contract_engine::{
-    analyze_contract, apply_openapi_comparison, build_consumption_lock, to_html, to_json,
-    to_markdown, to_yaml, ContractContext,
+    analyze_contract, apply_openapi_comparison, build_consumption_lock, diff_contracts, to_html,
+    to_json, to_markdown, to_pact_json, to_yaml, ConsumptionLock, ContractContext,
 };
 use wireassume_experiment::{ExperimentConfig, ExperimentRunner};
 use wireassume_model::CorpusStore;
@@ -76,6 +76,30 @@ enum Command {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    /// Compare two consumption.lock files and optionally fail on stricter consumer behavior.
+    Diff {
+        base: PathBuf,
+        head: PathBuf,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        fail_on_breaking: bool,
+    },
+    /// Export a consumption.lock as a Pact v3 compatibility document.
+    ExportPact {
+        lock: PathBuf,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// List run-scoped contract history, optionally filtered to one assumption ID.
+    History {
+        #[arg(long, default_value = ".wireassume")]
+        workspace: PathBuf,
+        #[arg(long)]
+        assumption: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Replay recorded traffic, execute real consumer oracles, and infer consumption.lock.
     Analyze {
         #[arg(long)]
@@ -110,6 +134,18 @@ async fn main() -> Result<()> {
             seed,
             output.as_deref(),
         ),
+        Command::Diff {
+            base,
+            head,
+            json,
+            fail_on_breaking,
+        } => diff_locks(&base, &head, json, fail_on_breaking),
+        Command::ExportPact { lock, output } => export_pact(&lock, output.as_deref()),
+        Command::History {
+            workspace,
+            assumption,
+            json,
+        } => history(&workspace, assumption.as_deref(), json),
         Command::Analyze {
             scenario,
             source_revision,
@@ -502,6 +538,160 @@ fn http_spec(config: &HttpOracleConfig) -> HttpOracleSpec {
         body_contains: config.body_contains.clone(),
         headers: config.headers.clone(),
     }
+}
+
+fn load_lock(path: &Path) -> Result<ConsumptionLock> {
+    let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    if path.extension().and_then(|value| value.to_str()) == Some("json") {
+        serde_json::from_str(&text).with_context(|| format!("parse JSON lock {}", path.display()))
+    } else {
+        serde_yaml::from_str(&text).with_context(|| format!("parse YAML lock {}", path.display()))
+    }
+}
+
+fn diff_locks(
+    base_path: &Path,
+    head_path: &Path,
+    json: bool,
+    fail_on_breaking: bool,
+) -> Result<()> {
+    let base = load_lock(base_path)?;
+    let head = load_lock(head_path)?;
+    let diff = diff_contracts(&base, &head);
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&diff)?);
+    } else {
+        println!("WireAssume contract diff");
+        println!("Base revision: {}", diff.base_revision);
+        println!("Head revision: {}", diff.head_revision);
+        println!("Breaking: {}", diff.breaking);
+        println!("Added assumptions: {}", diff.added_assumptions.len());
+        for assumption in &diff.added_assumptions {
+            println!(
+                "  + {} {} — {} ({})",
+                assumption.target,
+                assumption.assumption_type,
+                assumption.behavior,
+                assumption.severity
+            );
+        }
+        println!("Removed assumptions: {}", diff.removed_assumptions.len());
+        for assumption in &diff.removed_assumptions {
+            println!("  - {} {}", assumption.target, assumption.assumption_type);
+        }
+        println!("Requirement changes: {}", diff.requirement_changes.len());
+        for change in &diff.requirement_changes {
+            println!(
+                "  {} {} — {}",
+                if change.breaking { "!" } else { "~" },
+                change.target,
+                change.reason
+            );
+        }
+        println!(
+            "Provider comparison changes: {}",
+            diff.provider_comparison_changes.len()
+        );
+    }
+
+    if fail_on_breaking && diff.breaking {
+        bail!("breaking consumer-contract change detected");
+    }
+    Ok(())
+}
+
+fn export_pact(lock_path: &Path, output: Option<&Path>) -> Result<()> {
+    let lock = load_lock(lock_path)?;
+    let pact = to_pact_json(&lock)?;
+    if let Some(output) = output {
+        if let Some(parent) = output
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(output, pact)?;
+        println!("Wrote Pact compatibility export to {}", output.display());
+    } else {
+        println!("{pact}");
+    }
+    Ok(())
+}
+
+fn history(workspace: &Path, assumption_filter: Option<&str>, json: bool) -> Result<()> {
+    let runs_dir = workspace.join("runs");
+    let mut snapshots = Vec::new();
+    if runs_dir.exists() {
+        for entry in fs::read_dir(&runs_dir)
+            .with_context(|| format!("read run directory {}", runs_dir.display()))?
+        {
+            let entry = entry?;
+            if !entry.file_type()?.is_dir() {
+                continue;
+            }
+            let path = entry.path().join("consumption.lock.json");
+            if !path.exists() {
+                continue;
+            }
+            let lock = load_lock(&path)?;
+            if assumption_filter.is_some_and(|filter| {
+                !lock
+                    .assumptions
+                    .iter()
+                    .any(|assumption| assumption.id == filter)
+            }) {
+                continue;
+            }
+            let mut assumption_ids = lock
+                .assumptions
+                .iter()
+                .map(|assumption| assumption.id.clone())
+                .collect::<Vec<_>>();
+            assumption_ids.sort();
+            snapshots.push(serde_json::json!({
+                "run_id": entry.file_name().to_string_lossy(),
+                "generated_at": lock.metadata.generated_at,
+                "revision": lock.metadata.source_revision,
+                "assumption_ids": assumption_ids,
+            }));
+        }
+    }
+    snapshots.sort_by(|a, b| {
+        a["generated_at"]
+            .as_str()
+            .cmp(&b["generated_at"].as_str())
+            .then(a["run_id"].as_str().cmp(&b["run_id"].as_str()))
+    });
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&snapshots)?);
+    } else if snapshots.is_empty() {
+        println!("No matching run-scoped contract history found.");
+    } else {
+        for snapshot in &snapshots {
+            println!(
+                "{}  {}  {} assumptions  {}",
+                snapshot["generated_at"].as_str().unwrap_or("unknown-time"),
+                snapshot["revision"]["value"]
+                    .as_str()
+                    .unwrap_or("unknown-revision"),
+                snapshot["assumption_ids"].as_array().map_or(0, Vec::len),
+                snapshot["run_id"].as_str().unwrap_or("unknown-run")
+            );
+        }
+        if let Some(assumption) = assumption_filter {
+            if let Some(first) = snapshots.first() {
+                println!(
+                    "First recorded revision containing {assumption}: {}",
+                    first["revision"]["value"]
+                        .as_str()
+                        .unwrap_or("unknown-revision")
+                );
+            }
+        }
+    }
+    Ok(())
 }
 
 fn scenario_by_name<'a>(
