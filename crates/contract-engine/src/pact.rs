@@ -79,27 +79,29 @@ fn matcher(requirement: &Requirement) -> Option<Value> {
 
 fn insert_placeholder(root: &mut Value, pointer: &str, value: Value) {
     let segments = pointer_segments(pointer);
-    if segments.is_empty() {
-        *root = value;
+    insert_segments(root, &segments, &value);
+}
+
+fn insert_segments(current: &mut Value, segments: &[String], value: &Value) {
+    let Some((segment, rest)) = segments.split_first() else {
+        *current = value.clone();
+        return;
+    };
+
+    if !current.is_object() {
+        *current = Value::Object(Map::new());
+    }
+    let object = current
+        .as_object_mut()
+        .expect("value was converted to an object above");
+    if rest.is_empty() {
+        object.insert(segment.clone(), value.clone());
         return;
     }
-    let mut current = root;
-    for (index, segment) in segments.iter().enumerate() {
-        let is_last = index + 1 == segments.len();
-        if !current.is_object() {
-            *current = Value::Object(Map::new());
-        }
-        let object = current
-            .as_object_mut()
-            .expect("value was converted to an object above");
-        if is_last {
-            object.insert(segment.clone(), value.clone());
-        } else {
-            current = object
-                .entry(segment.clone())
-                .or_insert_with(|| Value::Object(Map::new()));
-        }
-    }
+    let child = object
+        .entry(segment.clone())
+        .or_insert_with(|| Value::Object(Map::new()));
+    insert_segments(child, rest, value);
 }
 
 fn pointer_segments(pointer: &str) -> Vec<String> {
