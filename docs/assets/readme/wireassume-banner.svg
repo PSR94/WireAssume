@@ -5,7 +5,7 @@
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071a33"/><stop offset="1" stop-color="#031021"/></linearGradient>
     <linearGradient id="brand" x1="0" x2="1"><stop stop-color="#16b8ff"/><stop offset="1" stop-color="#0078ff"/></linearGradient>
     <linearGradient id="wave" x1="0" x2="1"><stop stop-color="#0a67c9" stop-opacity=".9"/><stop offset="1" stop-color="#063c86" stop-opacity=".25"/></linearGradient>
-    <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#22c5ff"/></marker>
   </defs>
   <rect width="1400" height="420" fill="url(#bg)" rx="24"/>
@@ -17,7 +17,9 @@
     <text x="60" y="258" font-size="19" fill="#8db3dc">Evidence-driven consumer dependency mining</text>
     <text x="60" y="288" font-size="19" fill="#8db3dc">through record → replay → mutate → observe → infer.</text>
   </g>
-  <g transform="translate(650 138)" font-family="Inter,Segoe UI,Arial,sans-serif">
+
+  <!-- Keep the full pipeline inside a 36px right safe area so GitHub never clips it. -->
+  <g transform="translate(600 132) scale(.82)" font-family="Inter,Segoe UI,Arial,sans-serif">
     <path d="M-35 15 C5 15 0 45 35 45" fill="none" stroke="#159ee8" stroke-width="2" opacity=".8"/><path d="M-35 55 C5 55 0 55 35 55" fill="none" stroke="#159ee8" stroke-width="2" opacity=".8"/><path d="M-35 95 C5 95 0 65 35 65" fill="none" stroke="#159ee8" stroke-width="2" opacity=".8"/>
     <g fill="#20c5ff"><circle cx="-35" cy="15" r="4"/><circle cx="-35" cy="55" r="4"/><circle cx="-35" cy="95" r="4"/></g>
     <g>
@@ -51,6 +53,10 @@
     </g>
     <g transform="translate(780 8)"><rect width="150" height="118" rx="16" fill="#06233f" stroke="#0b4c7d"/><text x="18" y="28" font-size="18" fill="#d8efff">Infer</text><circle cx="28" cy="55" r="9" fill="#22c5ff"/><path d="m24 55 3 3 6-7" fill="none" stroke="#04233b" stroke-width="2"/><rect x="48" y="49" width="78" height="8" rx="4" fill="#1aa8ef"/><circle cx="28" cy="79" r="9" fill="#245b8d"/><rect x="48" y="74" width="58" height="7" rx="4" fill="#1b527e"/><circle cx="28" cy="103" r="9" fill="#245b8d"/><rect x="48" y="98" width="72" height="7" rx="4" fill="#1b527e"/></g>
   </g>
-  <g font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" letter-spacing="3" fill="#7299c5"><text x="60" y="380">APIs  →  BEHAVIOR  →  CONTRACTS  →  CLARITY</text><text x="1050" y="380">REAL INTERACTIONS.  DEEPER INSIGHTS.</text></g>
+
+  <g font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" letter-spacing="3" fill="#7299c5">
+    <text x="60" y="380">APIs  →  BEHAVIOR  →  CONTRACTS  →  CLARITY</text>
+    <text x="1340" y="380" text-anchor="end">REAL INTERACTIONS.  DEEPER INSIGHTS.</text>
+  </g>
   <path d="M0 340 Q240 270 430 337 T840 337 T1400 320 V420 H0Z" fill="url(#wave)" opacity=".45"/><path d="M0 370 Q230 295 460 360 T910 355 T1400 350" fill="none" stroke="#159ee8" stroke-width="2" opacity=".6"/>
 </svg>
