@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420" role="img" aria-labelledby="title desc">
+  <title id="title">WireAssume</title>
+  <desc id="desc">Discover what your application actually assumes about the APIs it depends on. Record, replay, mutate, observe, and infer.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071a33"/><stop offset="1" stop-color="#031021"/></linearGradient>
+    <linearGradient id="brand" x1="0" x2="1"><stop stop-color="#16b8ff"/><stop offset="1" stop-color="#0078ff"/></linearGradient>
+    <linearGradient id="wave" x1="0" x2="1"><stop stop-color="#0a67c9" stop-opacity=".9"/><stop offset="1" stop-color="#063c86" stop-opacity=".25"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#22c5ff"/></marker>
+  </defs>
+  <rect width="1400" height="420" fill="url(#bg)" rx="24"/>
+  <g opacity=".12" fill="#19bfff"><circle cx="720" cy="90" r="2"/><circle cx="742" cy="90" r="2"/><circle cx="764" cy="90" r="2"/><circle cx="786" cy="90" r="2"/><circle cx="808" cy="90" r="2"/><circle cx="720" cy="112" r="2"/><circle cx="742" cy="112" r="2"/><circle cx="764" cy="112" r="2"/><circle cx="786" cy="112" r="2"/><circle cx="808" cy="112" r="2"/></g>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <text x="58" y="116" font-size="70" font-weight="800" fill="#f7fbff">Wire<tspan fill="url(#brand)">Assume</tspan></text>
+    <text x="60" y="170" font-size="27" font-weight="700" fill="#dcecff">Discover what your application actually</text>
+    <text x="60" y="207" font-size="27" font-weight="700" fill="#dcecff">assumes about the APIs it depends on.</text>
+    <text x="60" y="258" font-size="19" fill="#8db3dc">Evidence-driven consumer dependency mining</text>
+    <text x="60" y="288" font-size="19" fill="#8db3dc">through record → replay → mutate → observe → infer.</text>
+  </g>
+  <g transform="translate(650 138)" font-family="Inter,Segoe UI,Arial,sans-serif">
+    <path d="M-35 15 C5 15 0 45 35 45" fill="none" stroke="#159ee8" stroke-width="2" opacity=".8"/><path d="M-35 55 C5 55 0 55 35 55" fill="none" stroke="#159ee8" stroke-width="2" opacity=".8"/><path d="M-35 95 C5 95 0 65 35 65" fill="none" stroke="#159ee8" stroke-width="2" opacity=".8"/>
+    <g fill="#20c5ff"><circle cx="-35" cy="15" r="4"/><circle cx="-35" cy="55" r="4"/><circle cx="-35" cy="95" r="4"/></g>
+    <g>
+      <rect x="35" y="18" width="105" height="92" rx="18" fill="#062848" stroke="#0c82d8" stroke-width="2"/>
+      <circle cx="87" cy="51" r="15" fill="none" stroke="#d8eeff" stroke-width="4"/><circle cx="87" cy="51" r="6" fill="#79d7ff"/>
+      <text x="87" y="90" text-anchor="middle" font-size="16" fill="#f1f8ff">Record</text>
+    </g>
+    <path d="M145 64H174" stroke="#22c5ff" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="184" y="18" width="105" height="92" rx="18" fill="#062848" stroke="#0c82d8" stroke-width="2"/>
+      <path d="M225 39 252 55 225 71Z" fill="#22c5ff"/>
+      <text x="236" y="90" text-anchor="middle" font-size="16" fill="#f1f8ff">Replay</text>
+    </g>
+    <path d="M294 64H323" stroke="#22c5ff" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="333" y="18" width="105" height="92" rx="18" fill="#062848" stroke="#0c82d8" stroke-width="2"/>
+      <path d="M360 45h16l9 10 9-10h17M360 72h16l9-10 9 10h17" fill="none" stroke="#22c5ff" stroke-width="4" stroke-linecap="round"/>
+      <text x="385" y="90" text-anchor="middle" font-size="16" fill="#f1f8ff">Mutate</text>
+    </g>
+    <path d="M443 64H472" stroke="#22c5ff" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="482" y="18" width="105" height="92" rx="18" fill="#062848" stroke="#0c82d8" stroke-width="2"/>
+      <path d="M506 55c13-18 31-18 44 0-13 18-31 18-44 0Z" fill="none" stroke="#22c5ff" stroke-width="4"/><circle cx="528" cy="55" r="8" fill="#22c5ff"/>
+      <text x="534" y="90" text-anchor="middle" font-size="16" fill="#f1f8ff">Observe</text>
+    </g>
+    <path d="M592 64H621" stroke="#22c5ff" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="631" y="2" width="126" height="126" rx="17" fill="#073253" stroke="#49e7ff" stroke-width="2.5" filter="url(#glow)"/>
+      <path d="M694 27c16 11 27 10 40 0v28c0 19-17 34-40 44-23-10-40-25-40-44V27c13 10 24 11 40 0Z" fill="none" stroke="#59e9ff" stroke-width="4"/><path d="m678 56 11 11 22-24" fill="none" stroke="#59e9ff" stroke-width="4"/>
+      <path d="M658 111h72" stroke="#1e75b6" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(780 8)"><rect width="150" height="118" rx="16" fill="#06233f" stroke="#0b4c7d"/><text x="18" y="28" font-size="18" fill="#d8efff">Infer</text><circle cx="28" cy="55" r="9" fill="#22c5ff"/><path d="m24 55 3 3 6-7" fill="none" stroke="#04233b" stroke-width="2"/><rect x="48" y="49" width="78" height="8" rx="4" fill="#1aa8ef"/><circle cx="28" cy="79" r="9" fill="#245b8d"/><rect x="48" y="74" width="58" height="7" rx="4" fill="#1b527e"/><circle cx="28" cy="103" r="9" fill="#245b8d"/><rect x="48" y="98" width="72" height="7" rx="4" fill="#1b527e"/></g>
+  </g>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" letter-spacing="3" fill="#7299c5"><text x="60" y="380">APIs  →  BEHAVIOR  →  CONTRACTS  →  CLARITY</text><text x="1050" y="380">REAL INTERACTIONS.  DEEPER INSIGHTS.</text></g>
+  <path d="M0 340 Q240 270 430 337 T840 337 T1400 320 V420 H0Z" fill="url(#wave)" opacity=".45"/><path d="M0 370 Q230 295 460 360 T910 355 T1400 350" fill="none" stroke="#159ee8" stroke-width="2" opacity=".6"/>
+</svg>

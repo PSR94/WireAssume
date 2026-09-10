@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+<title id="title">WireAssume Architecture</title><desc id="desc">Architecture diagram showing interfaces, external systems, WireAssume core engine, and outputs.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#061a34"/><stop offset="1" stop-color="#020c19"/></linearGradient>
+<linearGradient id="brand" x1="0" x2="1"><stop stop-color="#22c7ff"/><stop offset="1" stop-color="#0878ff"/></linearGradient>
+<marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#27c5ff"/></marker>
+<style>.t{font-family:Inter,Segoe UI,Arial,sans-serif}.h{fill:#f5fbff;font-weight:800}.s{fill:#9fc3e6}.c{fill:#072642;stroke:#168dd5;stroke-width:2}.ci{fill:#082e4e;stroke:#27c5ff;stroke-width:2}.l{fill:#dcefff;font-weight:700}.m{fill:#9fc3e6;font-size:16px}.line{stroke:#27c5ff;stroke-width:2.5;fill:none;marker-end:url(#a)}.thin{stroke:#1387c7;stroke-width:2;fill:none}</style>
+</defs>
+<rect width="1600" height="900" fill="url(#bg)" rx="24"/>
+<g class="t"><text x="52" y="78" class="h" font-size="58">Wire<tspan fill="url(#brand)">Assume</tspan> Architecture</text><text x="54" y="116" class="s" font-size="22">Record real interactions. Explore what your application assumes. Infer reliable contracts.</text></g>
+<!-- left panels -->
+<g class="t"><rect x="40" y="160" width="290" height="275" rx="20" class="c"/><text x="62" y="195" class="l" font-size="22">Entry points / interfaces</text>
+<g><rect x="58" y="218" width="254" height="58" rx="12" class="ci"/><text x="82" y="246" class="l" font-size="18">CLI</text><text x="82" y="266" class="m">Run, configure, automate</text></g>
+<g><rect x="58" y="288" width="254" height="58" rx="12" class="ci"/><text x="82" y="316" class="l" font-size="18">GitHub Action</text><text x="82" y="336" class="m">CI / CD integration</text></g>
+<g><rect x="58" y="358" width="254" height="58" rx="12" class="ci"/><text x="82" y="386" class="l" font-size="18">YAML Config</text><text x="82" y="406" class="m">Targets, oracles, mutation policy</text></g>
+<rect x="40" y="462" width="290" height="315" rx="20" class="c"/><text x="62" y="497" class="l" font-size="22">External systems</text>
+<g><rect x="58" y="520" width="254" height="66" rx="12" class="ci"/><text x="82" y="550" class="l" font-size="18">Provider API</text><text x="82" y="572" class="m">Real upstream service</text></g>
+<g><rect x="58" y="600" width="254" height="66" rx="12" class="ci"/><text x="82" y="630" class="l" font-size="18">Consumer App Under Test</text><text x="82" y="652" class="m">Your application</text></g>
+<g><rect x="58" y="680" width="254" height="66" rx="12" class="ci"/><text x="82" y="710" class="l" font-size="18">OpenAPI Spec</text><text x="82" y="732" class="m">Provider guarantees (optional)</text></g></g>
+<!-- core -->
+<rect x="375" y="150" width="850" height="650" rx="24" fill="#041b31" stroke="#25c6ff" stroke-width="2" stroke-dasharray="7 8"/>
+<g class="t"><text x="410" y="195" class="h" font-size="30">Wire<tspan fill="url(#brand)">Assume</tspan> Core Engine</text><text x="412" y="224" class="s" font-size="15" letter-spacing="4">RECORD → EXPERIMENT → INFER</text></g>
+<!-- capture row -->
+<g class="t"><rect x="420" y="260" width="215" height="125" rx="18" class="ci"/><text x="528" y="302" class="l" text-anchor="middle" font-size="21">Proxy / Recorder</text><text x="528" y="330" class="m" text-anchor="middle">Capture real interactions</text><circle cx="528" cy="355" r="10" fill="none" stroke="#74ddff" stroke-width="4"/><circle cx="528" cy="355" r="4" fill="#74ddff"/>
+<rect x="690" y="260" width="215" height="125" rx="18" class="ci"/><text x="798" y="302" class="l" text-anchor="middle" font-size="21">Normalizer &amp; Redaction</text><text x="798" y="330" class="m" text-anchor="middle">Canonicalize; remove secrets</text><path d="M770 346h56l-20 18v18h-16v-18Z" fill="none" stroke="#27c5ff" stroke-width="3"/>
+<rect x="960" y="260" width="215" height="125" rx="18" class="ci"/><text x="1068" y="302" class="l" text-anchor="middle" font-size="21">Replay Corpus</text><text x="1068" y="330" class="m" text-anchor="middle">Stored interactions &amp; variants</text><ellipse cx="1068" cy="354" rx="21" ry="8" fill="none" stroke="#27c5ff" stroke-width="3"/><path d="M1047 354v24c0 10 42 10 42 0v-24" fill="none" stroke="#27c5ff" stroke-width="3"/></g>
+<path d="M635 322H684" class="line"/><path d="M905 322H954" class="line"/>
+<!-- experiment engine -->
+<rect x="415" y="425" width="590" height="220" rx="20" fill="#051f37" stroke="#168dd5" stroke-width="2" stroke-dasharray="6 7"/>
+<g class="t"><text x="440" y="458" class="l" font-size="20">Experiment Engine</text><text x="440" y="482" class="m">Orchestrates replay, mutation, and verification</text>
+<rect x="440" y="510" width="160" height="100" rx="16" class="ci"/><text x="520" y="548" class="l" text-anchor="middle" font-size="18">Replay Engine</text><text x="520" y="574" class="m" text-anchor="middle">Serve responses</text>
+<rect x="630" y="510" width="160" height="100" rx="16" class="ci"/><text x="710" y="548" class="l" text-anchor="middle" font-size="18">Mutation Engine</text><text x="710" y="574" class="m" text-anchor="middle">Generate variants</text>
+<rect x="820" y="510" width="160" height="100" rx="16" class="ci"/><text x="900" y="548" class="l" text-anchor="middle" font-size="18">Oracle Runner</text><text x="900" y="574" class="m" text-anchor="middle">Check app behavior</text></g>
+<path d="M600 560H624" class="line"/><path d="M790 560H814" class="line"/>
+<!-- ddmin/contract/shared -->
+<g class="t"><rect x="1040" y="445" width="150" height="165" rx="18" class="ci"/><text x="1115" y="495" class="l" text-anchor="middle" font-size="18">Delta Debugger</text><text x="1115" y="520" class="l" text-anchor="middle" font-size="18">(ddmin)</text><text x="1115" y="552" class="m" text-anchor="middle">Minimize decisive</text><text x="1115" y="574" class="m" text-anchor="middle">behavior</text>
+<rect x="505" y="680" width="310" height="90" rx="16" class="ci"/><text x="660" y="716" class="l" text-anchor="middle" font-size="20">Contract Engine</text><text x="660" y="742" class="m" text-anchor="middle">Infer only from decisive evidence</text>
+<rect x="850" y="680" width="310" height="90" rx="16" class="ci"/><text x="1005" y="716" class="l" text-anchor="middle" font-size="20">Shared Model / Config</text><text x="1005" y="742" class="m" text-anchor="middle">Canonical models and policy</text></g>
+<path d="M980 560H1034" class="line"/><path d="M710 610V674" class="line"/><path d="M1115 610V674" class="line"/><path d="M815 725H844" class="line"/>
+<!-- external connections -->
+<path d="M330 247H414" class="line"/><path d="M330 317H400V300H414" class="thin"/><path d="M330 387H390V340H414" class="thin"/><path d="M330 553H380V322H414" class="line"/><path d="M330 633H420V560H434" class="line"/><path d="M330 713H499" class="line"/>
+<!-- outputs -->
+<rect x="1260" y="160" width="300" height="617" rx="20" class="c"/>
+<g class="t"><text x="1284" y="198" class="l" font-size="24">Outputs</text>
+<g><rect x="1280" y="225" width="260" height="84" rx="12" class="ci"/><text x="1302" y="258" class="l" font-size="18">consumption.lock</text><text x="1302" y="283" class="m">Reproducible consumer contract</text></g>
+<g><rect x="1280" y="325" width="260" height="84" rx="12" class="ci"/><text x="1302" y="358" class="l" font-size="18">Evidence artifacts</text><text x="1302" y="383" class="m">Traffic, mutations, oracle results</text></g>
+<g><rect x="1280" y="425" width="260" height="84" rx="12" class="ci"/><text x="1302" y="458" class="l" font-size="18">Reports</text><text x="1302" y="483" class="m">YAML / JSON / Markdown / HTML</text></g>
+<g><rect x="1280" y="525" width="260" height="84" rx="12" class="ci"/><text x="1302" y="558" class="l" font-size="18">Pact v3 export</text><text x="1302" y="583" class="m">Compatibility bridge for CI/CD</text></g>
+<g><rect x="1280" y="625" width="260" height="84" rx="12" class="ci"/><text x="1302" y="658" class="l" font-size="18">Contract diff / history</text><text x="1302" y="683" class="m">Track dependency changes</text></g></g>
+<path d="M1225 285H1274" class="line"/><path d="M1225 467H1274" class="line"/><path d="M1225 667H1274" class="line"/>
+<g class="t" fill="#6f9bc6" font-size="13" letter-spacing="3"><text x="48" y="852">APIs → BEHAVIOR → EVIDENCE → CONTRACTS → CLARITY</text><text x="1210" y="852">TEST REALITY. BUILD CONFIDENCE.</text></g>
+</svg>
