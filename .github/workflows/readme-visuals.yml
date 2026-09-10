@@ -1,0 +1,124 @@
+name: Integrate README visuals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/readme-visuals.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Patch README with visual assets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("README.md")
+          text = path.read_text()
+
+          old_header = '''<div align="center">
+
+          # WireAssume
+
+          **Discover what your application actually assumes about the APIs it depends on.**
+
+          An API schema tells you what a provider *may* send. WireAssume runs controlled counterfactual experiments to discover what your consumer *actually needs*.
+
+          [![Rust core](https://github.com/PSR94/WireAssume/actions/workflows/rust.yml/badge.svg)](https://github.com/PSR94/WireAssume/actions/workflows/rust.yml)
+          [![OrbitDesk demo](https://github.com/PSR94/WireAssume/actions/workflows/demo.yml/badge.svg)](https://github.com/PSR94/WireAssume/actions/workflows/demo.yml)
+          [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+          </div>'''
+          old_header = '\n'.join(line[10:] if line.startswith('          ') else line for line in old_header.splitlines())
+          new_header = '''<p align="center">
+            <img src="docs/assets/readme/wireassume-banner.svg" alt="WireAssume — discover what your application actually assumes about the APIs it depends on" width="100%" />
+          </p>
+
+          <div align="center">
+
+          [![Rust core](https://github.com/PSR94/WireAssume/actions/workflows/rust.yml/badge.svg)](https://github.com/PSR94/WireAssume/actions/workflows/rust.yml)
+          [![OrbitDesk demo](https://github.com/PSR94/WireAssume/actions/workflows/demo.yml/badge.svg)](https://github.com/PSR94/WireAssume/actions/workflows/demo.yml)
+          [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+          </div>'''
+          new_header = '\n'.join(line[10:] if line.startswith('          ') else line for line in new_header.splitlines())
+          if old_header not in text:
+              raise SystemExit("README header marker not found")
+          text = text.replace(old_header, new_header, 1)
+
+          completed_marker = '''---
+
+          # What has been completed so far'''
+          completed_marker = '\n'.join(line[10:] if line.startswith('          ') else line for line in completed_marker.splitlines())
+          flow_section = '''---
+
+          # Analysis flow
+
+          <p align="center">
+            <img src="docs/assets/readme/wireassume-analysis-flow.svg" alt="WireAssume analysis flow from capture through evidence-backed inference" width="100%" />
+          </p>
+
+          The flow is deliberately ordered: WireAssume verifies the unmodified baseline first, changes one provider behavior at a time, asks the real consumer oracle what happened, and only then turns decisive failure evidence into a requirement. `INCONCLUSIVE` never becomes a dependency, and OpenAPI comparison happens after behavioral inference rather than acting as ground truth.
+
+          ---
+
+          # What has been completed so far'''
+          flow_section = '\n'.join(line[10:] if line.startswith('          ') else line for line in flow_section.splitlines())
+          if completed_marker not in text:
+              raise SystemExit("completed-work marker not found")
+          text = text.replace(completed_marker, flow_section, 1)
+
+          arch_marker = '''# Architecture
+
+          ```text'''
+          arch_marker = '\n'.join(line[10:] if line.startswith('          ') else line for line in arch_marker.splitlines())
+          arch_replacement = '''# Architecture
+
+          <p align="center">
+            <img src="docs/assets/readme/wireassume-architecture.svg" alt="WireAssume architecture showing interfaces, provider and consumer systems, deterministic core engine, and generated outputs" width="100%" />
+          </p>
+
+          The architecture keeps evidence capture, experiment execution, inference, and provider-spec comparison separate. That separation is intentional: provider schemas and optional AI assistance can explain or compare findings, but neither is allowed to manufacture the behavioral ground truth.
+
+          ## Runtime data path
+
+          ```text'''
+          arch_replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in arch_replacement.splitlines())
+          if arch_marker not in text:
+              raise SystemExit("architecture marker not found")
+          text = text.replace(arch_marker, arch_replacement, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Verify README asset references
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f docs/assets/readme/wireassume-banner.svg
+          test -f docs/assets/readme/wireassume-architecture.svg
+          test -f docs/assets/readme/wireassume-analysis-flow.svg
+          grep -q 'wireassume-banner.svg' README.md
+          grep -q 'wireassume-architecture.svg' README.md
+          grep -q 'wireassume-analysis-flow.svg' README.md
+
+      - name: Commit final README and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/readme-visuals.yml
+          git add README.md docs/assets/readme/
+          git commit -m "docs: integrate SVG banner architecture and analysis flow"
+          git push origin HEAD:main
