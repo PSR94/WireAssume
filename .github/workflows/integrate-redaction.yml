@@ -19,7 +19,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Apply redaction integration patch
-        run: python3 scripts/integrate_redaction.py
+        run: |
+          sed -i 's/Body::Bytes(_)/Body::Base64(_)/' scripts/integrate_redaction.py
+          python3 scripts/integrate_redaction.py
 
       - name: Refresh lockfile
         run: cargo check --workspace
