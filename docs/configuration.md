@@ -185,9 +185,12 @@ redaction:
   jsonpaths:
     - $.user.secret
     - $.credentials.password
+  regexes:
+    - 'Bearer\s+[A-Za-z0-9._-]+'
+    - 'demo-secret-[0-9]+'
 ```
 
-Traffic redaction happens before persistence. The current JSON path implementation supports root/object-key paths such as `$.user.secret`; wildcard/array/full JSONPath and regex redaction are tracked as pre-release limitations.
+Traffic redaction happens before persistence. Regexes are validated at configuration load and are applied to textual captured bodies, JSON string values, header values, request URIs, and persisted oracle/minimization summaries. The current JSON path implementation supports root/object-key paths such as `$.user.secret`; wildcard/array/full JSONPath remains a pre-release limitation.
 
 ## Reproducibility
 

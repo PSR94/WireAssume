@@ -9,6 +9,10 @@ proxy:
   listen: 127.0.0.1:0
   max_payload_bytes: 2097152
 
+redaction:
+  regexes:
+    - 'demo-secret-[0-9]+'
+
 scenarios:
   - name: customer-profile
     traffic:

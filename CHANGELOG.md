@@ -24,13 +24,14 @@ All notable changes to WireAssume are documented here. The project is currently 
 
 - Reverse-proxy-first design; no silent CA installation or trust-store modification.
 - Default redaction for credential-like headers and query parameters before traffic persistence.
+- Validated regex redaction for captured textual/JSON values and persisted oracle/minimization evidence.
 - Loopback-only proxy binding unless explicitly overridden.
 - Explicit-argv command oracle execution rather than implicit shell interpolation.
 
 ### Known pre-release limitations
 
 - Rich Playwright journey DSL, browser screenshots/console/network evidence, and interactive debugging UI are not yet implemented.
-- Redaction supports configured simple object-key JSON paths; full JSONPath and regex redaction remain to be completed.
+- Redaction supports configured simple object-key JSON paths and regexes; wildcard/array/full JSONPath remains to be completed.
 - Experiment execution currently serializes response overrides; broader isolated-worker concurrency remains to be completed.
 - OpenAPI comparison intentionally supports a conservative initial subset and returns `unknown` for unsupported shapes.
 - FastAPI/PostgreSQL service and Next.js dashboard are not part of the validated CLI release surface yet.

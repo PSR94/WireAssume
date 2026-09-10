@@ -31,6 +31,17 @@ def main() -> int:
         if expected not in html:
             return fail(f"static HTML report is missing {expected!r}")
 
+    persisted_json = glob.glob(".wireassume/evidence/*/*.json") + glob.glob(
+        ".wireassume/runs/run_*/*.json"
+    )
+    persisted_text = "\n".join(
+        open(path, encoding="utf-8").read() for path in persisted_json
+    )
+    if "demo-secret-123" in persisted_text:
+        return fail("configured fake secret leaked into persisted oracle evidence")
+    if "[REDACTED]" not in persisted_text:
+        return fail("oracle evidence did not contain the expected redaction marker")
+
     if report["baseline"]["summary"].find("passed") < 0:
         return fail("baseline oracle did not pass")
     if report["failures"] < 2:
@@ -95,7 +106,8 @@ def main() -> int:
     print(
         "demo verification OK: OrbitDesk experimentally requires PeopleCRM email "
         "presence + non-nullability while tolerating empty strings; async ddmin reduces "
-        "the successful response to {email}; OpenAPI marks the dependency optional + nullable"
+        "the successful response to {email}; OpenAPI marks the dependency optional + nullable; "
+        "configured regex redaction removes the fake oracle secret before persistence"
     )
     return 0
 

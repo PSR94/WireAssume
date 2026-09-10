@@ -7,7 +7,7 @@ WireAssume is under active construction toward v0.1.0. This matrix distinguishes
 | Prior-art research | Implemented | Research notes and product distinction documented. |
 | `consumption.lock` v1 schema | Implemented | Draft 2020-12 JSON Schema with evidence, revision, confidence, and history references. |
 | Traffic corpus model | Implemented | Canonical IDs, request/response/metadata artifacts, and content hashing. |
-| Redaction | Implemented, partial rule surface | Default credential headers/query params and simple object-key JSON paths are redacted before traffic persistence. Full JSONPath/regex rules remain. |
+| Redaction | Implemented, partial JSONPath surface | Default credential headers/query params, simple object-key JSON paths, and validated regex rules are redacted before persistence. The same regex policy scrubs persisted oracle text. Full wildcard/array JSONPath remains. |
 | Traffic normalization | Implemented | Separate deterministic normalization stage; persisted evidence is not mutated in place for analysis. |
 | Reverse proxy recording | Implemented | Reverse-proxy capture with bounded bodies, configured upstream boundary, redirects disabled, and loopback-first defaults. |
 | Deterministic replay | Implemented | Recorded interactions can be replayed deterministically from the persisted corpus. |

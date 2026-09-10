@@ -247,7 +247,8 @@ async fn analyze(
         experiment_config.budget
     );
 
-    let runner = ExperimentRunner::new(&workspace, replay.controller.clone(), oracle);
+    let runner = ExperimentRunner::new(&workspace, replay.controller.clone(), oracle)
+        .with_redaction(config.redaction.clone());
     let report = match runner.run(&experiment_config).await {
         Ok(report) => report,
         Err(error) => {

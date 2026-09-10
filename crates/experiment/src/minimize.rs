@@ -3,7 +3,7 @@ use serde_json::{Map, Value};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wireassume_delta_debugger::{minimize_success_async, TestOutcome};
-use wireassume_model::{stable_id, Body, ResponseRecord};
+use wireassume_model::{stable_id, Body, RedactionPolicy, ResponseRecord};
 use wireassume_oracles::{Oracle, OracleStatus};
 use wireassume_proxy::{ExperimentReplayController, ResponseOverride};
 
@@ -50,6 +50,7 @@ pub(crate) async fn minimize_response_fields(
     baseline: &ResponseRecord,
     controller: ExperimentReplayController,
     oracle: Arc<dyn Oracle>,
+    redaction: RedactionPolicy,
 ) -> Option<(ResponseMinimization, MinimizationArtifact)> {
     let Body::Json(Value::Object(object)) = &baseline.body else {
         return None;
@@ -71,6 +72,7 @@ pub(crate) async fn minimize_response_fields(
     let baseline_for_test = baseline.clone();
     let interaction_for_test = interaction_id_owned.clone();
     let trials_for_test = trials.clone();
+    let redaction_for_test = redaction;
 
     let minimized = minimize_success_async(original_fields.clone(), move |mut candidate_fields| {
         candidate_fields.sort();
@@ -80,6 +82,7 @@ pub(crate) async fn minimize_response_fields(
         let baseline = baseline_for_test.clone();
         let interaction_id = interaction_for_test.clone();
         let trials = trials_for_test.clone();
+        let redaction = redaction_for_test.clone();
 
         async move {
             let mut candidate_object = Map::new();
@@ -127,7 +130,7 @@ pub(crate) async fn minimize_response_fields(
                 candidate_fields,
                 outcome: label.into(),
                 duration_ms,
-                summary,
+                summary: redaction.redact_text(&summary),
             });
             outcome
         }

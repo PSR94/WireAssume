@@ -197,6 +197,11 @@ impl WireAssumeConfig {
         if self.proxy.max_payload_bytes == 0 {
             errors.push("proxy.max_payload_bytes must be greater than zero".to_string());
         }
+        for error in self.redaction.regex_errors() {
+            errors.push(format!(
+                "redaction.regexes contains invalid pattern {error}"
+            ));
+        }
 
         let mut names = BTreeSet::new();
         for scenario in &self.scenarios {

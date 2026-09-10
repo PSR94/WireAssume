@@ -289,7 +289,7 @@ Architecture decisions live under [`docs/architecture/decisions/`](docs/architec
 WireAssume is intended for local development and CI robustness testing of systems you control.
 
 - Credential-like headers and query parameters are redacted before captured traffic is persisted.
-- Configured JSON body paths can be redacted before persistence.
+- Configured JSON body paths and validated regex rules can be redacted before persistence; regex rules also scrub persisted oracle stdout/stderr/summaries.
 - Recording is reverse-proxy-first; there is no silent certificate or trust-store modification.
 - Proxy payload sizes are bounded.
 - Upstream redirects are disabled while recording.
@@ -310,7 +310,7 @@ cargo test --workspace --locked
 
 The OrbitDesk workflow separately executes the real consumer against mutated PeopleCRM replay and verifies the generated contract, minimization result, provider comparison, and HTML report.
 
-The richer browser evidence DSL, multi-worker experiment concurrency, full JSONPath/regex redaction, backend service, and interactive Next.js dashboard are not represented here as completed features. Their status is tracked explicitly in [`docs/project-status.md`](docs/project-status.md); the README does not use mock screenshots or hard-coded findings to imply otherwise.
+The richer browser evidence DSL, multi-worker experiment concurrency, full wildcard/array JSONPath redaction, backend service, and interactive Next.js dashboard are not represented here as completed features. Their status is tracked explicitly in [`docs/project-status.md`](docs/project-status.md); the README does not use mock screenshots or hard-coded findings to imply otherwise.
 
 ## Prior art and design
 

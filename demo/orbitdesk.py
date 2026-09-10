@@ -41,6 +41,7 @@ def main() -> int:
     # Empty strings are deliberately tolerated. The hidden dependency demonstrated by
     # this scenario is presence + non-nullability, not non-emptiness.
     normalized_email = email.strip().lower()
+    print("OrbitDesk debug token: demo-secret-123")
     print(f"OrbitDesk customer profile OK: {normalized_email}")
     return 0
 

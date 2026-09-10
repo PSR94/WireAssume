@@ -9,7 +9,9 @@ use std::{
     sync::Arc,
 };
 use thiserror::Error;
-use wireassume_model::{canonical_json, stable_id, Body, CorpusError, CorpusStore};
+use wireassume_model::{
+    canonical_json, stable_id, Body, CorpusError, CorpusStore, RedactionPolicy,
+};
 use wireassume_mutation_engine::{
     ArrayMutator, JsonMutator, MutationKind, MutationPlanner, PlannerConfig, ProtocolMutator,
     ProtocolMutatorConfig,
@@ -133,6 +135,7 @@ pub struct ExperimentRunner {
     workspace: PathBuf,
     controller: ExperimentReplayController,
     oracle: Arc<dyn Oracle>,
+    redaction: RedactionPolicy,
 }
 
 impl ExperimentRunner {
@@ -145,7 +148,13 @@ impl ExperimentRunner {
             workspace: workspace.into(),
             controller,
             oracle,
+            redaction: RedactionPolicy::default(),
         }
+    }
+
+    pub fn with_redaction(mut self, redaction: RedactionPolicy) -> Self {
+        self.redaction = redaction;
+        self
     }
 
     pub fn plan(&self, config: &ExperimentConfig) -> Result<Vec<ExperimentCase>, ExperimentError> {
@@ -267,7 +276,8 @@ impl ExperimentRunner {
 
         self.controller.reset().await;
         let baseline_evaluated = self.oracle.evaluate().await;
-        let baseline_artifact = oracle_artifact(self.oracle.kind(), baseline_evaluated);
+        let baseline_artifact =
+            oracle_artifact(self.oracle.kind(), baseline_evaluated, &self.redaction);
         let baseline_ref = persist_run_artifact(
             &self.workspace,
             &run_id,
@@ -296,7 +306,7 @@ impl ExperimentRunner {
 
             let evaluated = self.oracle.evaluate().await;
             self.controller.reset().await;
-            let artifact = oracle_artifact(self.oracle.kind(), evaluated);
+            let artifact = oracle_artifact(self.oracle.kind(), evaluated, &self.redaction);
             let evidence_fingerprint = EvidenceFingerprint {
                 run_id: &run_id,
                 interaction_id: &case.interaction_id,
@@ -333,6 +343,7 @@ impl ExperimentRunner {
                 &interaction.response,
                 self.controller.clone(),
                 self.oracle.clone(),
+                self.redaction.clone(),
             )
             .await
             {
@@ -391,7 +402,11 @@ struct EvidenceFingerprint<'a> {
     outcome: TrialOutcome,
 }
 
-fn oracle_artifact(kind: &str, result: Result<OracleResult, OracleError>) -> OracleArtifact {
+fn oracle_artifact(
+    kind: &str,
+    result: Result<OracleResult, OracleError>,
+    redaction: &RedactionPolicy,
+) -> OracleArtifact {
     match result {
         Ok(result) => OracleArtifact {
             oracle_kind: kind.to_string(),
@@ -401,18 +416,21 @@ fn oracle_artifact(kind: &str, result: Result<OracleResult, OracleError>) -> Ora
                 OracleStatus::Inconclusive => TrialOutcome::Inconclusive,
             },
             duration_ms: result.duration_ms,
-            summary: result.summary,
-            stdout: result.stdout,
-            stderr: result.stderr,
+            summary: redaction.redact_text(&result.summary),
+            stdout: redaction.redact_text(&result.stdout),
+            stderr: redaction.redact_text(&result.stderr),
         },
-        Err(error) => OracleArtifact {
-            oracle_kind: kind.to_string(),
-            outcome: TrialOutcome::Inconclusive,
-            duration_ms: 0,
-            summary: error.to_string(),
-            stdout: String::new(),
-            stderr: error.to_string(),
-        },
+        Err(error) => {
+            let error = redaction.redact_text(&error.to_string());
+            OracleArtifact {
+                oracle_kind: kind.to_string(),
+                outcome: TrialOutcome::Inconclusive,
+                duration_ms: 0,
+                summary: error.clone(),
+                stdout: String::new(),
+                stderr: error,
+            }
+        }
     }
 }
 
