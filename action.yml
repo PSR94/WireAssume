@@ -1,0 +1,112 @@
+name: WireAssume
+
+description: Discover evidence-backed consumer API assumptions by replaying and mutating recorded provider traffic.
+
+author: PSR94
+
+branding:
+  icon: activity
+  color: purple
+
+inputs:
+  config:
+    description: Path to the WireAssume configuration file, relative to working-directory.
+    required: false
+    default: .wireassume.yml
+  scenario:
+    description: Scenario name to analyze.
+    required: true
+  working-directory:
+    description: Directory in the caller repository that contains the consumer project and WireAssume workspace.
+    required: false
+    default: .
+  source-revision:
+    description: Revision recorded in consumption.lock. Defaults to GITHUB_SHA when empty.
+    required: false
+    default: ""
+  toolchain:
+    description: Rust toolchain used to build the WireAssume action binary.
+    required: false
+    default: 1.98.0
+
+outputs:
+  run-id:
+    description: Stable WireAssume run identifier.
+    value: ${{ steps.analyze.outputs.run-id }}
+  report-directory:
+    description: Absolute path to the generated run directory.
+    value: ${{ steps.analyze.outputs.report-directory }}
+  lockfile:
+    description: Absolute path to the generated root consumption.lock.yml.
+    value: ${{ steps.analyze.outputs.lockfile }}
+  markdown-report:
+    description: Absolute path to the generated Markdown report.
+    value: ${{ steps.analyze.outputs.markdown-report }}
+  html-report:
+    description: Absolute path to the generated self-contained HTML report.
+    value: ${{ steps.analyze.outputs.html-report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.toolchain }}
+
+    - name: Build WireAssume
+      shell: bash
+      run: cargo build --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" --locked --release --bin wireassume
+
+    - name: Analyze consumer assumptions
+      id: analyze
+      shell: bash
+      env:
+        WA_CONFIG: ${{ inputs.config }}
+        WA_SCENARIO: ${{ inputs.scenario }}
+        WA_WORKDIR: ${{ inputs.working-directory }}
+        WA_SOURCE_REVISION: ${{ inputs.source-revision }}
+      run: |
+        set -euo pipefail
+
+        workdir="$GITHUB_WORKSPACE/$WA_WORKDIR"
+        if [[ ! -d "$workdir" ]]; then
+          echo "WireAssume working-directory does not exist: $workdir" >&2
+          exit 2
+        fi
+        cd "$workdir"
+
+        revision="$WA_SOURCE_REVISION"
+        if [[ -z "$revision" ]]; then
+          revision="${GITHUB_SHA:-workspace/working-tree}"
+        fi
+
+        binary="$GITHUB_ACTION_PATH/target/release/wireassume"
+        output="$($binary --config "$WA_CONFIG" analyze --scenario "$WA_SCENARIO" --source-revision "$revision")"
+        printf '%s\n' "$output"
+
+        run_id="$(printf '%s\n' "$output" | sed -n 's/^Run: //p' | tail -n 1)"
+        if [[ -z "$run_id" ]]; then
+          echo "WireAssume completed without emitting a run identifier." >&2
+          exit 3
+        fi
+
+        report_directory="$workdir/.wireassume/runs/$run_id"
+        lockfile="$workdir/consumption.lock.yml"
+        markdown_report="$report_directory/report.md"
+        html_report="$report_directory/report.html"
+
+        for artifact in "$lockfile" "$markdown_report" "$html_report"; do
+          if [[ ! -f "$artifact" ]]; then
+            echo "Expected WireAssume artifact was not generated: $artifact" >&2
+            exit 4
+          fi
+        done
+
+        {
+          echo "run-id=$run_id"
+          echo "report-directory=$report_directory"
+          echo "lockfile=$lockfile"
+          echo "markdown-report=$markdown_report"
+          echo "html-report=$html_report"
+        } >> "$GITHUB_OUTPUT"
