@@ -1,4 +1,5 @@
 use crate::{ConsumptionLock, ContractAnalysis};
+use wireassume_experiment::TrialOutcome;
 
 pub fn to_html(lock: &ConsumptionLock, analysis: &ContractAnalysis) -> String {
     let mut requirements = lock.requirements.clone();
@@ -44,14 +45,36 @@ pub fn to_html(lock: &ConsumptionLock, analysis: &ContractAnalysis) -> String {
     }
 
     let mut tolerance_rows = String::new();
-    for entry in &analysis.tolerance_map {
+    for entry in &analysis.tolerance {
+        let passed = entry
+            .cells
+            .iter()
+            .filter(|cell| cell.outcome == TrialOutcome::Pass)
+            .count();
+        let failed = entry
+            .cells
+            .iter()
+            .filter(|cell| cell.outcome == TrialOutcome::Fail)
+            .count();
+        let inconclusive = entry
+            .cells
+            .iter()
+            .filter(|cell| cell.outcome == TrialOutcome::Inconclusive)
+            .count();
+        let tolerated = entry
+            .cells
+            .iter()
+            .filter(|cell| cell.outcome == TrialOutcome::Pass)
+            .map(|cell| format!("{:?}", cell.mutation))
+            .collect::<Vec<_>>()
+            .join(", ");
         tolerance_rows.push_str(&format!(
             "<tr><td><code>{}</code></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
             escape_html(&entry.target),
-            entry.passed,
-            entry.failed,
-            entry.inconclusive,
-            escape_html(&entry.tolerated.join(", ")),
+            passed,
+            failed,
+            inconclusive,
+            escape_html(&tolerated),
         ));
     }
     if tolerance_rows.is_empty() {
